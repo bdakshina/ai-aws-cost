@@ -11,6 +11,17 @@ To ensure rapid validation, immediate business value, and smooth stakeholder onb
 - **Phase 2: Enterprise Multi-Resource Expansion**
   Upon successful demonstration and validation of the ECS POC, expand the pipeline and intelligence engine across all remaining AWS resource categories (EC2 instances, S3 storage, RDS databases, DynamoDB, Lambda serverless, and Network/NAT Gateways).
 
+## LLM Model Selection Strategy
+- **Phase 1 POC Model — Groq API (`llama-3.3-70b-versatile`)**:
+  - **Provider & Access**: **Groq Cloud API** (Free Tier access using `llama-3.3-70b-versatile`).
+  - **Key Advantages for POC**:
+    - **100% Free**: Operates under Groq's free API tier without requiring upfront licensing budget.
+    - **Advanced Reasoning & Coding**: Llama 3.3 70B excels at Text-to-SQL translation, multi-dimensional FinOps pattern analysis (CPU/RAM vs Cost), and compliant Terraform/Boto3 IaC generation.
+    - **Ultra-Fast Speed**: Powered by Groq LPUs (~300+ tokens/sec) for instant streaming answers during the live POC demo.
+    - **Seamless Upgrade Path**: Built using standard OpenAI/Groq API client abstractions, allowing a 1-line configuration swap to Anthropic Claude 3.5 Sonnet once the enterprise license is approved.
+- **Phase 2 Production Target — Anthropic Claude 3.5 Sonnet**:
+  - Official enterprise target model to be enabled upon POC submission and license approval.
+
 ---
 
 ## Goal
