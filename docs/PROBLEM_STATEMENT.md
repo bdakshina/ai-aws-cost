@@ -6,10 +6,21 @@ Every enterprise cloud strategy fails the same way financially: cloud consumptio
 ## Implementation Strategy: Two-Phase Approach
 To ensure rapid validation, immediate business value, and smooth stakeholder onboarding, development will proceed in two distinct phases:
 
-- **Phase 1: Proof of Concept (POC) — Amazon ECS Focus & Live Demo**
-  Implement the entire end-to-end automation pipeline specifically tailored for **Amazon ECS (Elastic Container Service)** resources (covering both Fargate and EC2 launch types). This includes ingesting ECS metrics and cost data, answering natural language questions on ECS spend, detecting ECS task/service waste (e.g., over-provisioned task CPU/memory allocations, idle services, off-hours scaling), generating custom Terraform remediation code, and demonstrating the complete working flow via a Streamlit UI demo.
-- **Phase 2: Enterprise Multi-Resource Expansion**
-  Upon successful demonstration and validation of the ECS POC, expand the pipeline and intelligence engine across all remaining AWS resource categories (EC2 instances, S3 storage, RDS databases, DynamoDB, Lambda serverless, and Network/NAT Gateways).
+- **Phase 1: Proof of Concept (POC) — Amazon ECS Focus & Live Demo (100% Free Open Tools)**
+  Implement the entire end-to-end automation pipeline using zero-cost open-source tools specifically tailored for **Amazon ECS (Elastic Container Service)** resources (covering both Fargate and EC2 launch types). This includes ingesting ECS metrics and cost data into a free local database, answering natural language questions via Groq API, detecting ECS task/service waste, generating custom Terraform remediation code, and demonstrating the complete working flow via a Streamlit UI demo.
+- **Phase 2: Enterprise Multi-Resource Expansion (Production Stack)**
+  Upon successful demonstration and validation of the ECS POC, transition to enterprise-grade infrastructure (Anthropic Claude 3.5 Sonnet, AWS Athena/Redshift) and expand the pipeline across all remaining AWS resource categories (EC2 instances, S3 storage, RDS databases, DynamoDB, Lambda serverless, and Network/NAT Gateways).
+
+## Tooling Strategy Matrix: Phase 1 (POC) vs Phase 2 (Enterprise)
+
+| Component | Phase 1: POC (Free Tools & Single Resource) | Phase 2: Enterprise Production Stack |
+| :--- | :--- | :--- |
+| **Target Scope** | **Amazon ECS** (Fargate & EC2 task/cluster metrics) | **All AWS Resources** (EC2, S3, RDS, Lambda, DynamoDB, Network) |
+| **AI / LLM Engine** | **Groq Cloud API** (`llama-3.3-70b-versatile`) — *100% Free API* | **Anthropic Claude 3.5 Sonnet** — *Enterprise License* |
+| **Database Pattern** | **DuckDB** (Free in-process OLAP analytical database) | **AWS Athena / Amazon Redshift / Snowflake** |
+| **Data Storage / ETL** | Local File Directory (`data/raw/`, `data/processed/`) | AWS S3 Bucket + AWS Glue Data Catalog |
+| **User Interface** | **Streamlit App** (Local / Streamlit Community Cloud) | Enterprise Web Portal (Streamlit / Next.js on AWS App Runner) |
+| **IaC Remediation** | Local Terraform CLI / Boto3 Dry-Run Scripts | AWS CI/CD Pipeline (Terraform Cloud / AWS CodePipeline) |
 
 ## LLM Model Selection Strategy
 - **Phase 1 POC Model — Groq API (`llama-3.3-70b-versatile`)**:
@@ -21,6 +32,17 @@ To ensure rapid validation, immediate business value, and smooth stakeholder onb
     - **Seamless Upgrade Path**: Built using standard OpenAI/Groq API client abstractions, allowing a 1-line configuration swap to Anthropic Claude 3.5 Sonnet once the enterprise license is approved.
 - **Phase 2 Production Target — Anthropic Claude 3.5 Sonnet**:
   - Official enterprise target model to be enabled upon POC submission and license approval.
+
+## Database Pattern Selection Strategy
+- **Phase 1 POC Database — DuckDB (Embedded Analytical OLAP Engine)**:
+  - **Pattern**: In-process OLAP (Online Analytical Processing) database file stored locally in `data/processed/cloudintel.duckdb`.
+  - **Why DuckDB for POC**:
+    - **Zero Cost & Zero Infra**: 100% free open-source Python library (`pip install duckdb`). No server setup, Docker containers, or cloud instance costs required.
+    - **Blazing Fast Analytical Performance**: Specifically engineered for columnar analytical SQL queries on raw CSV/JSON billing data and ECS task CPU/Memory logs. Performs aggregations 10–100x faster than traditional databases.
+    - **ANSI SQL Compliance**: Standard SQL support ensures LLMs (Groq `llama-3.3-70b-versatile`) generate accurate, standard SQL queries without dialect errors.
+    - **Seamless Enterprise Portability**: SQL queries written against DuckDB tables can be reused directly in AWS Athena or Redshift for Phase 2.
+- **Phase 2 Production Database — AWS Athena / Amazon Redshift**:
+  - Serverless cloud data lake query engine querying raw CUR Parquet files directly in AWS S3.
 
 ---
 
