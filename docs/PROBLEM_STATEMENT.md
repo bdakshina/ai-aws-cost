@@ -3,13 +3,13 @@
 ## The Big Problem
 Every enterprise cloud strategy fails the same way financially: cloud consumption is decentralized across multiple Business Units (BUs), leading to massive, untracked waste (often 20-35% of total spend). Information is siloed. Existing cloud management tools are highly technical, throwing JSON logs and complex graphs at business stakeholders who just want to know, "Why did our bill spike yesterday?" Furthermore, when one BU solves a complex cost optimization problem, that knowledge never transfers to other BUs.
 
-In a banking environment, cost optimization is further complicated by strict enterprise security and compliance standards. Optimization tools often make unsafe suggestions (e.g., removing KMS keys, stripping logging sidecars, or turning off encryption) to save money. CloudIntel solves this by embedding an intelligent **Banking Security & Compliance Guardrails Layer** directly into the AI recommendation and code generation engine.
+In a banking environment, cost optimization is further complicated by strict enterprise security and compliance standards, as well as institutional infrastructure provisioning processes. Optimization tools often make unsafe suggestions (e.g., removing KMS keys, stripping logging sidecars, or turning off encryption) to save money. Furthermore, provisioning in our bank is strictly governed by **AWS Service Catalog** using compliant **AWS CloudFormation** templates rather than raw ad-hoc scripts or unmanaged IaC tools. CloudIntel solves this by embedding an intelligent **Banking Security & Compliance Guardrails Layer** directly into the AI recommendation and CloudFormation template generation engine.
 
 ## Implementation Strategy: Two-Phase Approach
 To ensure rapid validation, immediate business value, and smooth stakeholder onboarding, development will proceed in two distinct phases:
 
 - **Phase 1: Proof of Concept (POC) — Multi-Service Focus (ECS-EC2, Lambda, S3) & Live Demo**
-  Implement the end-to-end automation pipeline using zero-cost / lightweight open-source tools tailored for key cloud service patterns: **Amazon ECS (EC2 Launch Type)** container workloads, **AWS Lambda** serverless compute, and **Amazon S3** object storage. This includes ingesting multi-service metrics and cost data into a local DuckDB analytical database, answering natural language questions via Groq API, detecting resource waste filtered through banking compliance guardrails, generating compliant Terraform remediation code, and demonstrating the complete flow via a Streamlit UI demo.
+  Implement the end-to-end automation pipeline using zero-cost / lightweight open-source tools tailored for key cloud service patterns: **Amazon ECS (EC2 Launch Type)** container workloads, **AWS Lambda** serverless compute, and **Amazon S3** object storage. This includes ingesting multi-service metrics and cost data into a local DuckDB analytical database, answering natural language questions via Groq API, detecting resource waste filtered through banking compliance guardrails, generating compliant AWS CloudFormation remediation templates (ready for AWS Service Catalog integration), and demonstrating the complete flow via a Streamlit UI demo.
 - **Phase 2: Enterprise Multi-Resource Expansion (Production Stack)**
   Upon successful demonstration and validation of the multi-service POC, transition to enterprise-grade infrastructure (Anthropic Claude 3.5 Sonnet, AWS Athena/Redshift) and expand the pipeline across all remaining AWS resource categories (EC2 instances, RDS databases, DynamoDB, and Network/NAT Gateways).
 
@@ -23,21 +23,21 @@ To ensure rapid validation, immediate business value, and smooth stakeholder onb
 | **Database Pattern** | **DuckDB** (Free in-process OLAP analytical database) | **AWS Athena / Amazon Redshift / Snowflake** |
 | **Data Storage / ETL** | Local File Directory (`data/raw/`, `data/processed/`) or AWS S3 Bucket + DuckDB | AWS S3 Bucket + AWS Glue Data Catalog |
 | **User Interface** | **Streamlit App** (Local / Streamlit Community Cloud) | Enterprise Web Portal (Streamlit / Next.js on AWS App Runner) |
-| **IaC Remediation** | Local Terraform CLI / Boto3 Dry-Run Scripts (Guardrail Checked) | AWS CI/CD Pipeline (Terraform Cloud / AWS CodePipeline) |
+| **IaC Remediation** | **AWS CloudFormation (YAML/JSON)** & AWS Service Catalog Product Templates | AWS CI/CD Pipeline (AWS Service Catalog Portfolio / CodePipeline) |
 
 ## LLM Model Selection Strategy
 - **Phase 1 POC Model — Groq API (`llama-3.3-70b-versatile`)**:
   - **Provider & Access**: **Groq Cloud API** (Free Tier access using `llama-3.3-70b-versatile`).
   - **Key Advantages for POC**:
     - **100% Free**: Operates under Groq's free API tier without requiring upfront licensing budget.
-    - **Advanced Reasoning & Coding**: Llama 3.3 70B excels at Text-to-SQL translation, multi-dimensional FinOps pattern analysis (CPU/RAM/Concurrency vs Cost), and compliant Terraform/Boto3 IaC generation.
+    - **Advanced Reasoning & Coding**: Llama 3.3 70B excels at Text-to-SQL translation, multi-dimensional FinOps pattern analysis (CPU/RAM/Concurrency vs Cost), and compliant AWS CloudFormation IaC template generation.
     - **Ultra-Fast Speed**: Powered by Groq LPUs (~300+ tokens/sec) for instant streaming answers during the live POC demo.
     - **Seamless Upgrade Path**: Built using standard OpenAI/Groq API client abstractions, allowing a 1-line configuration swap to Anthropic Claude 3.5 Sonnet once the enterprise license is approved.
 - **Phase 2 Production Target — Anthropic Claude 3.5 Sonnet**:
   - Official enterprise target model to be enabled upon POC submission and license approval.
 
 ## Enterprise Banking Compliance & Security Guardrails Strategy
-In banking and financial institutions, AI-driven cost optimization must **never** degrade security, compliance, or data protection standards. CloudIntel incorporates a policy-driven **Banking Guardrails Engine** that intercepts candidate AI recommendations before they are shown to users or converted to IaC.
+In banking and financial institutions, AI-driven cost optimization must **never** degrade security, compliance, or data protection standards. CloudIntel incorporates a policy-driven **Banking Guardrails Engine** that intercepts candidate AI recommendations before they are shown to users or converted to CloudFormation templates.
 
 ### Key Banking Guardrails Policies:
 1. **Mandatory AWS KMS Encryption (S3 & Storage)**:
@@ -45,11 +45,11 @@ In banking and financial institutions, AI-driven cost optimization must **never*
    - **Action**: If an AI prompt or pattern analyzer attempts to recommend removing KMS encryption to eliminate KMS API costs, the Guardrails Engine automatically rejects the recommendation with a policy violation flag (`REJECTED_KMS_MANDATE`).
 2. **Non-Degradable Security Sidecars (ECS EC2)**:
    - **Rule**: ECS Task definition resizing (CPU/Memory adjustments) must preserve mandatory container sidecars (e.g., security monitoring agents, log shippers, endpoint detection).
-   - **Action**: IaC generator ensures task definitions retain all compliance sidecar allocations.
+   - **Action**: CloudFormation generator ensures task definition resources (`AWS::ECS::TaskDefinition`) retain all compliance sidecar allocations.
 3. **Lambda Execution & Timeout Guardrails**:
    - **Rule**: Memory optimization for AWS Lambda must maintain required execution concurrency buffers and telemetry/tracing wrappers (AWS X-Ray / banking telemetry layers).
-4. **Zero Public Access Enforcement**:
-   - **Rule**: Any optimization touching S3 lifecycle or access configurations must explicitly retain `block_public_acls = true` and `block_public_policy = true`.
+4. **AWS Service Catalog Integration & Zero Public Access**:
+   - **Rule**: Generated CloudFormation templates must adhere to standard banking Service Catalog parameters and explicitly enforce `PublicAccessBlockConfiguration` with `BlockPublicAcls: true` and `BlockPublicPolicy: true`.
 
 ---
 
@@ -67,9 +67,9 @@ In banking and financial institutions, AI-driven cost optimization must **never*
 ---
 
 ## Goal
-Build an end-to-end Enterprise AI Platform powered by an advanced Large Language Model (like Claude/Gemini). The system must ingest raw cloud billing and usage data across ECS (EC2), Lambda, and S3, translate natural language questions from business stakeholders into complex cloud queries, perform multi-dimensional reasoning to spot cross-BU waste patterns while enforcing enterprise banking security guardrails, and automatically generate compliant Infrastructure as Code (IaC) to remediate the issues.
+Build an end-to-end Enterprise AI Platform powered by an advanced Large Language Model (like Claude/Gemini). The system must ingest raw cloud billing and usage data across ECS (EC2), Lambda, and S3, translate natural language questions from business stakeholders into complex cloud queries, perform multi-dimensional reasoning to spot cross-BU waste patterns while enforcing enterprise banking security guardrails, and automatically generate compliant AWS CloudFormation templates (ready for AWS Service Catalog) to remediate the issues.
 
-*Not just a dashboard. Not a generic code copilot. A contextual, compliance-aware FinOps intelligence engine that speaks business logic and writes compliant infrastructure code.*
+*Not just a dashboard. Not a generic code copilot. A contextual, compliance-aware FinOps intelligence engine that speaks business logic and writes compliant AWS CloudFormation code.*
 
 ---
 
@@ -84,7 +84,7 @@ AI analyzes multi-dimensional patterns (cost + CPU/memory + concurrency + storag
 ↓
 Banking Guardrails Engine validates recommendations (Enforces KMS encryption, security controls)
 ↓
-AI auto-generates proactive insights & compliant IaC (Terraform) remediation
+AI auto-generates proactive insights & compliant AWS CloudFormation templates (Service Catalog ready)
 ↓
 Business & Engineering query it via an interactive Streamlit chat interface
 ↓
@@ -113,7 +113,6 @@ Cloud billing and metric data is massive, granular, and hard to parse. You need 
 
 #### Deliverable ("Ship the Ingestion Engine")
 A working data pipeline where a single command cleans and loads raw ECS (EC2), Lambda, S3, and cloud logs into a structured, queryable database.
-🏅 **Badge**: The Cloud Data Architect
 
 #### Acceptance Criteria
 - `data/raw/` and `data/processed/` structure exists.
@@ -137,7 +136,6 @@ Business leaders ask questions like, "Why did the marketing team's Lambda execut
 
 #### Deliverable ("Ship the Natural Language FinOps Agent")
 A pipeline that takes plain-English questions about ECS, Lambda, S3, and cloud spend, writes the query, fetches the data, and returns a contextual answer.
-🏅 **Badge**: The Translator
 
 #### Acceptance Criteria
 - Natural language input successfully maps to executable SQL.
@@ -164,7 +162,6 @@ Reactive Q&A is good, but proactive optimization is better. The system needs to 
 
 #### Deliverable ("Ship the Proactive Compliance-Aware Analyst")
 An automated job that scans the database, identifies complex multi-service optimization opportunities, filters them against banking guardrails, and flags compliant savings.
-🏅 **Badge**: The Cost Detective
 
 #### Acceptance Criteria
 - Script successfully identifies waste in ECS (EC2), Lambda, and S3 storage.
@@ -175,30 +172,29 @@ An automated job that scans the database, identifies complex multi-service optim
 
 ### Week 4 — The Fixer & POC Demo: "Ask, Analyze, Automate"
 #### Problem
-Identifying waste is only half the battle; engineering teams need actual code to fix it. You need to wire the intelligence engine to a compliance-checked Infrastructure as Code (IaC) generator, package it into a clean UI, and present the POC demo.
+Identifying waste is only half the battle; engineering teams need actual code to fix it. You need to wire the intelligence engine to a compliance-checked AWS CloudFormation generator (ready for AWS Service Catalog integration), package it into a clean UI, and present the POC demo.
 
 #### Build Focus (Phase 1 POC Demo + System Integration)
-- **4.1 — The Remediation Engine (Guardrail Compliant)**:
-  - Instruct LLM to generate exact, compliant Terraform code or Python (Boto3) scripts for approved optimizations (e.g. update ECS container task limits, adjust Lambda memory settings, add S3 lifecycle rules while preserving `server_side_encryption_configuration` with `aws_kms_key`).
+- **4.1 — The Remediation Engine (Guardrail Compliant & Service Catalog Ready)**:
+  - Instruct LLM to generate exact, compliant AWS CloudFormation YAML/JSON templates or Python (Boto3) scripts for approved optimizations (e.g. update `AWS::ECS::TaskDefinition` container limits, adjust `AWS::Lambda::Function` memory settings, add `AWS::S3::Bucket` lifecycle configuration rules while preserving `BucketEncryption` with `ServerSideEncryptionRule` using KMS).
 - **4.2 — UI & POC Demo Application**:
   - Assemble into a Streamlit app (`app.py`):
     - Interactive Chat Interface for FinOps Q&A.
     - Proactive Cost-Saving Recommendations Dashboard (highlighting guardrail-compliant quick wins).
     - Banking Compliance Badge & Policy Violation logs for rejected unsafe fixes.
-    - "Generate Fix" button outputting ready-to-apply Terraform IaC.
+    - "Generate Fix" button outputting ready-to-apply AWS CloudFormation templates compatible with AWS Service Catalog products.
   - Deliver a live POC demonstration focusing on multi-service cost optimization (ECS-EC2, Lambda, S3).
 - **4.3 — Phase 2 Enterprise Rollout**:
   - Following successful POC demo approval, expand all modules (`ingest.py`, `query_agent.py`, `analyzer.py`, `iac_generator.py`) to encompass all remaining AWS resources (EC2 instances, RDS, DynamoDB, Networking).
 
 #### Deliverable ("Ship CloudIntel" — POC Demo + Complete Platform)
-Deploy the complete system—data ingestion → natural language Q&A → guardrail-filtered waste detection → compliant IaC generation—wired into a Streamlit app and demonstrated live for ECS (EC2), Lambda, and S3 before full enterprise release.
-🏅 **Badge**: The Automation Oracle
+Deploy the complete system—data ingestion → natural language Q&A → guardrail-filtered waste detection → compliant CloudFormation template generation—wired into a Streamlit app and demonstrated live for ECS (EC2), Lambda, and S3 before full enterprise release.
 
 #### Acceptance Criteria
-- LLM successfully generates valid Terraform/Python remediation scripts preserving mandatory KMS keys and security policies.
+- LLM successfully generates valid CloudFormation/Python remediation scripts preserving mandatory KMS keys, Service Catalog formatting, and security policies.
 - Streamlit app displays search/chat bar, recommendation cards, and compliance status indicators.
 - Live POC demo executed successfully on ECS (EC2), Lambda, and S3 resources.
-- Full end-to-end flow verified: ingest → query → analyze & filter guardrails → generate IaC.
+- Full end-to-end flow verified: ingest → query → analyze & filter guardrails → generate CloudFormation.
 
 ---
 
@@ -206,7 +202,7 @@ Deploy the complete system—data ingestion → natural language Q&A → guardra
 1. **Multi-Service POC Live Demo**: Functional demonstration of end-to-end cost optimization for Amazon ECS (EC2), AWS Lambda, and Amazon S3.
 2. **Banking Compliance Guardrails Integration**: Active rule filter protecting security controls (S3 KMS encryption, logging, sidecars).
 3. **Public/Internal Repo**: Clean code base with comprehensive `README.md` and setup instructions.
-4. **Live Deployed Application**: Interactive chat + actionable cost recommendations + compliant Terraform fix generator.
+4. **Live Deployed Application**: Interactive chat + actionable cost recommendations + compliant CloudFormation template generator for AWS Service Catalog.
 5. **Full Multi-Resource Coverage**: Extended post-POC automation for EC2, RDS, DynamoDB, and Networking.
 
 ---
@@ -221,8 +217,8 @@ cloudintel/
 ├── query_agent.py        # Week 2: LLM SQL generation and context explainer
 ├── analyzer.py           # Week 3: Proactive waste pattern recognition (ECS, Lambda, S3)
 ├── guardrails.py         # Week 3: Enterprise Banking Compliance & Security Policy Engine
-├── iac_generator.py      # Week 4: Compliant Terraform/Python remediation generator
-├── app.py                # Week 4: Streamlit UI (Chat + Insights + Compliance + IaC Output)
+├── iac_generator.py      # Week 4: Compliant CloudFormation / Service Catalog remediation generator
+├── app.py                # Week 4: Streamlit UI (Chat + Insights + Compliance + CloudFormation Studio)
 ├── requirements.txt
 └── README.md
 ```
@@ -232,8 +228,8 @@ cloudintel/
 2. **`ingest.py` (POC: ECS-EC2, Lambda, S3 focus)**: Load raw CSV/JSON data into database (Week 1)
 3. **`query_agent.py`**: Test natural language questions to SQL translation and explanation (Week 2)
 4. **`analyzer.py` & `guardrails.py`**: Run multi-dimensional reasoning prompts and filter candidates against banking security rules (Week 3)
-5. **`iac_generator.py`**: Test compliant Terraform generation for ECS container resizing, Lambda memory tuning, and S3 lifecycle rules (Week 4.1)
-6. **`app.py`**: Streamlit app combining chat, recommendations, compliance status, and IaC generation (Week 4.2)
+5. **`iac_generator.py`**: Test compliant CloudFormation generation for ECS container resizing, Lambda memory tuning, and S3 lifecycle rules (Week 4.1)
+6. **`app.py`**: Streamlit app combining chat, recommendations, compliance status, and CloudFormation template viewer (Week 4.2)
 7. **Conduct POC Demo**: Present multi-service cost optimization automation demo to stakeholders
-8. **Phase 2 Expansion**: Extend ingestion, reasoning, and IaC generation across all remaining AWS resource types
+8. **Phase 2 Expansion**: Extend ingestion, reasoning, and CloudFormation generation across all remaining AWS resource types
 9. **Finalize Documentation**: Update `README.md` and final deliverables

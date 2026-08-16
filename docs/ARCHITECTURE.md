@@ -7,7 +7,7 @@
 
 **CloudIntel** is an enterprise-grade AI FinOps intelligence platform designed to eliminate cloud waste across decentralized Business Units (BUs). Traditional cloud management tools produce complex JSON logs and static charts that business stakeholders struggle to interpret. Furthermore, cost optimization knowledge acquired in one BU rarely propagates to others.
 
-In a banking environment, AI-driven cost optimization must operate under strict security, data protection, and enterprise compliance standards. Optimization tools often make dangerous suggestions—such as deleting AWS Managed KMS keys or turning off encryption to cut costs. CloudIntel bridges this gap by combining an analytical data pipeline, Large Language Model (LLM) reasoning, automated Infrastructure as Code (IaC) generation, and an active **Banking Security & Compliance Guardrails Engine**. Stakeholders interact with their cloud infrastructure via plain English, receive contextual cost explanations, view compliance-vetted waste recommendations, and generate one-click Terraform remediation code.
+In a banking environment, AI-driven cost optimization must operate under strict security, data protection, and enterprise compliance standards, adhering strictly to bank provisioning workflows. Optimization tools often make dangerous suggestions—such as deleting AWS Managed KMS keys or turning off encryption to cut costs. Furthermore, infrastructure changes in our bank are strictly governed by **AWS Service Catalog** using compliant **AWS CloudFormation** templates. CloudIntel bridges this gap by combining an analytical data pipeline, Large Language Model (LLM) reasoning, automated AWS CloudFormation template generation (integrated with AWS Service Catalog), and an active **Banking Security & Compliance Guardrails Engine**. Stakeholders interact with their cloud infrastructure via plain English, receive contextual cost explanations, view compliance-vetted waste recommendations, and generate one-click AWS CloudFormation remediation code.
 
 ---
 
@@ -23,7 +23,7 @@ To enable rapid validation, immediate stakeholder alignment, and zero-cost proto
 | **Database & Analytical Engine** | **DuckDB** (Free in-process OLAP analytical database / S3 `httpfs`) | **AWS Athena / Amazon Redshift / Snowflake** |
 | **Storage & Data Lake** | Local Directory (`data/raw/`, `data/processed/`) or AWS S3 Bucket | AWS S3 Bucket + AWS Glue Data Catalog |
 | **User Interface (UI)** | **Streamlit Application** (Local / Streamlit Community Cloud) | Enterprise Web Portal (Streamlit / Next.js on AWS App Runner) |
-| **Remediation Target** | Local Terraform CLI / Boto3 Dry-Run Scripts (Guardrail Checked) | AWS CI/CD Pipeline (Terraform Cloud / AWS CodePipeline) |
+| **Remediation Target** | **AWS CloudFormation (YAML/JSON)** & AWS Service Catalog Product Templates | AWS CI/CD Pipeline (AWS Service Catalog Portfolio / CodePipeline) |
 
 ---
 
@@ -48,7 +48,7 @@ flowchart TB
         QueryAgent["query_agent.py\n(Text-to-SQL + Synthesis Agent)"]
         WasteAnalyzer["analyzer.py\n(Proactive Multi-Service Waste Engine)"]
         GuardrailsEngine["guardrails.py\n(Banking Security & KMS Compliance Engine)"]
-        IaCGenerator["iac_generator.py\n(Terraform / Boto3 Remediation Generator)"]
+        IaCGenerator["iac_generator.py\n(AWS CloudFormation & Service Catalog Generator)"]
         
         WasteAnalyzer --> GuardrailsEngine
     end
@@ -58,7 +58,7 @@ flowchart TB
         ChatInterface["Natural Language Q&A Chat"]
         Dashboard["Guardrail-Vetted Insights Dashboard"]
         ComplianceBadge["Banking Compliance & Policy Logs"]
-        RemediationUI["One-Click Compliant IaC Fix"]
+        RemediationUI["One-Click CloudFormation / Service Catalog Fix"]
         
         StreamlitUI --> ChatInterface
         StreamlitUI --> Dashboard
@@ -132,9 +132,9 @@ sequenceDiagram
             WA-->>UI: Render Approved Card in Savings Dashboard
             User->>UI: Click "Generate Fix" for Approved Recommendation
             UI->>IaC: Request Remediation Code (Target + Preserved KMS Config)
-            IaC->>LLM: Prompt 4: Generate Compliant Terraform Code
-            LLM-->>IaC: Return Formatted Terraform Script (main.tf)
-            IaC-->>UI: Display Compliant Terraform Code with Download / Apply Options
+            IaC->>LLM: Prompt 4: Generate Compliant AWS CloudFormation Template
+            LLM-->>IaC: Return Formatted CloudFormation YAML (cloudformation_template.yaml)
+            IaC-->>UI: Display CloudFormation Template with AWS Service Catalog Deploy Options
         end
     end
 ```
@@ -171,22 +171,22 @@ sequenceDiagram
   - **Cross-BU Optimization Sharing**: Identifies architectural waste in BU 'B' matching resolved patterns from BU 'A'.
 
 ### 5.4 Module 4: Banking Security & Compliance Guardrails Engine (`guardrails.py`)
-- **Purpose**: Acts as an enterprise policy interceptor that validates every candidate recommendation before it reaches the UI or IaC generator.
+- **Purpose**: Acts as an enterprise policy interceptor that validates every candidate recommendation before it reaches the UI or CloudFormation generator.
 - **Banking Compliance Rules**:
   1. **S3 KMS Key Encryption Mandate (`RULE_S3_KMS`)**:
      - Explicitly blocks any recommendation that attempts to delete, detach, or downgrade AWS Managed KMS keys (`aws_kms_key` / SSE-KMS) to cut API costs.
   2. **ECS Security Sidecar Retention (`RULE_ECS_SIDECARS`)**:
-     - Ensures container task definition resizing preserves mandatory security monitoring and telemetry sidecars.
+     - Ensures container task definition resizing preserves mandatory security monitoring and telemetry sidecars in `AWS::ECS::TaskDefinition`.
   3. **Lambda Telemetry & Minimum Memory (`RULE_LAMBDA_BOUNDS`)**:
      - Enforces lower bounds on Lambda memory reductions to guarantee security wrapper execution and prevents disabling AWS X-Ray / CloudWatch telemetry.
-  4. **Zero Public Access Enforcement (`RULE_NO_PUBLIC_ACCESS`)**:
-     - Mandates that S3 lifecycle changes explicitly retain `block_public_acls = true` and `block_public_policy = true`.
+  4. **Zero Public Access & Service Catalog Governance (`RULE_NO_PUBLIC_ACCESS`)**:
+     - Mandates that S3 lifecycle changes explicitly retain `PublicAccessBlockConfiguration` with `BlockPublicAcls: true` and `BlockPublicPolicy: true`.
 
 ### 5.5 Module 5: Infrastructure as Code Generator (`iac_generator.py`)
-- **Purpose**: Converts approved, guardrail-vetted recommendations into production-ready, compliant Terraform code.
+- **Purpose**: Converts approved, guardrail-vetted recommendations into production-ready, compliant **AWS CloudFormation templates** compatible with **AWS Service Catalog** products.
 - **Output Artifacts**:
-  - `main.tf` — Guardrail-checked Terraform configuration (e.g., updated `aws_ecs_task_definition` container limits, `aws_lambda_function` memory, `aws_s3_bucket_lifecycle_configuration` preserving `server_side_encryption_configuration` with `aws_kms_key`).
-  - `variables.tf` — Parameterized variables for CPU/Memory, concurrency, and retention periods.
+  - `cloudformation_template.yaml` — Guardrail-checked AWS CloudFormation template (e.g., updated `AWS::ECS::TaskDefinition` container limits, `AWS::Lambda::Function` memory, `AWS::S3::Bucket` lifecycle rules preserving `BucketEncryption` with `ServerSideEncryptionRule` using KMS).
+  - `service_catalog_product.json` — AWS Service Catalog Product artifact configuration and parameter mappings.
 
 ### 5.6 Module 6: User Interface (`app.py`)
 - **Framework**: Streamlit web application.
@@ -195,7 +195,7 @@ sequenceDiagram
   - **Tab 1: Chat Assistant**: Interactive Natural Language Q&A with text-to-SQL visibility across ECS, Lambda, and S3.
   - **Tab 2: Proactive Savings Dashboard**: Recommendation cards sorted by estimated monthly savings ($) displaying Banking Compliance Pass badges.
   - **Tab 3: Compliance & Guardrail Audit Log**: Transparent view of rejected unsafe recommendations (e.g., "KMS Key Removal Blocked").
-  - **Tab 4: Remediation & IaC Studio**: Interactive Terraform code viewer with copy/download options.
+  - **Tab 4: Remediation & CloudFormation Studio**: Interactive AWS CloudFormation YAML code viewer with copy/download options and AWS Service Catalog product links.
 
 ---
 
@@ -282,7 +282,7 @@ cloudintel/
 ├── query_agent.py                # Week 2: Text-to-SQL & synthesis agent
 ├── analyzer.py                   # Week 3: Proactive multi-service waste analyzer
 ├── guardrails.py                 # Week 3: Banking Security & Compliance Policy Engine
-├── iac_generator.py              # Week 4: Compliant Terraform remediation generator
+├── iac_generator.py              # Week 4: Compliant CloudFormation & Service Catalog remediation generator
 ├── app.py                        # Week 4: Streamlit web UI application
 ├── requirements.txt              # Dependencies (duckdb, groq, streamlit, pandas)
 └── README.md                     # Project overview & quickstart guide
