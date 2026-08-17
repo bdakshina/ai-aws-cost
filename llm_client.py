@@ -7,33 +7,42 @@ load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 MODEL_NAME = os.getenv("LLM_MODEL_NAME", "llama-3.3-70b-versatile")
-FALLBACK_MODELS = ["llama-3.3-70b-versatile", "llama3-70b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"]
+FALLBACK_MODELS = [
+    "llama-3.3-70b-versatile",
+    "llama3-70b-8192",
+    "llama-3.1-8b-instant",
+    "mixtral-8x7b-32768",
+    "gemma2-9b-it"
+]
 
 def call_llm(prompt: str, system_prompt: str = "You are CloudIntel FinOps AI Assistant.") -> str:
     """Calls Groq Cloud API if key is present, otherwise returns heuristic fallback response."""
     if GROQ_API_KEY and GROQ_API_KEY != "gsk_your_groq_api_key_here":
-        from groq import Groq
-        client = Groq(api_key=GROQ_API_KEY)
-        
-        models_to_try = [MODEL_NAME] + [m for m in FALLBACK_MODELS if m != MODEL_NAME]
-        for model in models_to_try:
-            try:
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.1,
-                    max_tokens=1024
-                )
-                return response.choices[0].message.content
-            except Exception as e:
-                err_msg = str(e)
-                if "model_not_found" in err_msg or "404" in err_msg:
-                    continue
-                print(f"[WARNING] Groq API call failed on model {model}: {err_msg}. Falling back to heuristic engine.")
-                break
+        try:
+            from groq import Groq
+            client = Groq(api_key=GROQ_API_KEY)
+            
+            models_to_try = [MODEL_NAME] + [m for m in FALLBACK_MODELS if m != MODEL_NAME]
+            for idx, model in enumerate(models_to_try):
+                try:
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": prompt}
+                        ],
+                        temperature=0.1,
+                        max_tokens=1024
+                    )
+                    return response.choices[0].message.content
+                except Exception as model_err:
+                    err_str = str(model_err).lower()
+                    if "model_not_found" in err_str or "404" in err_str or "decommissioned" in err_str:
+                        continue
+                    if idx == len(models_to_try) - 1:
+                        print(f"[WARNING] Groq API call failed: {model_err}. Falling back to heuristic engine.")
+        except Exception as e:
+            print(f"[WARNING] Groq Client Initialization Error: {e}. Falling back to heuristic engine.")
 
     # Heuristic Fallback Engine
     return fallback_llm_response(prompt, system_prompt)
