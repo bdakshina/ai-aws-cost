@@ -1,7 +1,10 @@
 import os
 import json
+import argparse
 import pandas as pd
 import duckdb
+
+from aws_connector import AWSNonProdConnector
 
 DATA_RAW_DIR = os.path.join(os.path.dirname(__file__), "data", "raw")
 DATA_PROCESSED_DIR = os.path.join(os.path.dirname(__file__), "data", "processed")
@@ -76,18 +79,31 @@ def init_db(con):
     );
     """)
 
-def ingest_data():
-    """Main ETL pipeline reading raw billing & metric data and storing in DuckDB."""
+def ingest_data(use_aws_live: bool = False):
+    """Main ETL pipeline reading raw billing & metric data into DuckDB."""
     os.makedirs(DATA_PROCESSED_DIR, exist_ok=True)
     con = duckdb.connect(DUCKDB_PATH)
     init_db(con)
 
     print("[Week 1 ETL] Starting Data Ingestion Pipeline...")
 
-    # 1. Ingest CUR CSV Data
-    cur_file = os.path.join(DATA_RAW_DIR, "aws_cur_export.csv")
-    if os.path.exists(cur_file):
-        df_cur = pd.read_csv(cur_file)
+    aws_conn = AWSNonProdConnector()
+    aws_active = use_aws_live or aws_conn.is_aws_authenticated()
+
+    if aws_active:
+        print("⚡ [AWS Non-Prod Mode] Fetching live metrics from AWS Account...")
+
+    # 1. Ingest CUR CSV Data (or Live AWS Cost Explorer)
+    df_cur = pd.DataFrame()
+    if aws_active:
+        df_cur = aws_conn.fetch_cost_explorer_reports()
+    
+    if df_cur.empty:
+        cur_file = os.path.join(DATA_RAW_DIR, "aws_cur_export.csv")
+        if os.path.exists(cur_file):
+            df_cur = pd.read_csv(cur_file)
+
+    if not df_cur.empty:
         con.execute("DELETE FROM raw_cost_reports;")
         con.register("df_cur_temp", df_cur)
         con.execute("""
@@ -98,12 +114,15 @@ def ingest_data():
         con.unregister("df_cur_temp")
         print(f"  - Loaded {len(df_cur)} records into 'raw_cost_reports'")
 
-    # 2. Ingest ECS Task Metrics JSON Data
-    ecs_file = os.path.join(DATA_RAW_DIR, "ecs_task_metrics.json")
-    if os.path.exists(ecs_file):
-        with open(ecs_file, "r") as f:
-            ecs_data = json.load(f)
-        df_ecs = pd.DataFrame(ecs_data)
+    # 2. Ingest ECS Task Metrics
+    live_ecs = aws_conn.fetch_ecs_task_metrics() if aws_active else []
+    if live_ecs:
+        df_ecs = pd.DataFrame(live_ecs)
+    else:
+        ecs_file = os.path.join(DATA_RAW_DIR, "ecs_task_metrics.json")
+        df_ecs = pd.DataFrame(json.load(open(ecs_file))) if os.path.exists(ecs_file) else pd.DataFrame()
+
+    if not df_ecs.empty:
         con.execute("DELETE FROM ecs_task_metrics;")
         con.register("df_ecs_temp", df_ecs)
         con.execute("""
@@ -114,12 +133,15 @@ def ingest_data():
         con.unregister("df_ecs_temp")
         print(f"  - Loaded {len(df_ecs)} records into 'ecs_task_metrics'")
 
-    # 3. Ingest Lambda Metrics JSON Data
-    lambda_file = os.path.join(DATA_RAW_DIR, "lambda_metrics.json")
-    if os.path.exists(lambda_file):
-        with open(lambda_file, "r") as f:
-            lambda_data = json.load(f)
-        df_lambda = pd.DataFrame(lambda_data)
+    # 3. Ingest Lambda Metrics
+    live_lambda = aws_conn.fetch_lambda_metrics() if aws_active else []
+    if live_lambda:
+        df_lambda = pd.DataFrame(live_lambda)
+    else:
+        lambda_file = os.path.join(DATA_RAW_DIR, "lambda_metrics.json")
+        df_lambda = pd.DataFrame(json.load(open(lambda_file))) if os.path.exists(lambda_file) else pd.DataFrame()
+
+    if not df_lambda.empty:
         con.execute("DELETE FROM lambda_metrics;")
         con.register("df_lambda_temp", df_lambda)
         con.execute("""
@@ -130,12 +152,15 @@ def ingest_data():
         con.unregister("df_lambda_temp")
         print(f"  - Loaded {len(df_lambda)} records into 'lambda_metrics'")
 
-    # 4. Ingest S3 Storage Metrics JSON Data
-    s3_file = os.path.join(DATA_RAW_DIR, "s3_storage_metrics.json")
-    if os.path.exists(s3_file):
-        with open(s3_file, "r") as f:
-            s3_data = json.load(f)
-        df_s3 = pd.DataFrame(s3_data)
+    # 4. Ingest S3 Storage Metrics
+    live_s3 = aws_conn.fetch_s3_metrics() if aws_active else []
+    if live_s3:
+        df_s3 = pd.DataFrame(live_s3)
+    else:
+        s3_file = os.path.join(DATA_RAW_DIR, "s3_storage_metrics.json")
+        df_s3 = pd.DataFrame(json.load(open(s3_file))) if os.path.exists(s3_file) else pd.DataFrame()
+
+    if not df_s3.empty:
         con.execute("DELETE FROM s3_storage_metrics;")
         con.register("df_s3_temp", df_s3)
         con.execute("""
@@ -150,4 +175,7 @@ def ingest_data():
     print("[Week 1 ETL] Ingestion completed successfully! Database ready at:", DUCKDB_PATH)
 
 if __name__ == "__main__":
-    ingest_data()
+    parser = argparse.ArgumentParser(description="CloudIntel Data Ingestion Pipeline")
+    parser.add_argument("--use-aws", action="store_true", help="Attempt live AWS non-prod account connection")
+    args = parser.parse_args()
+    ingest_data(use_aws_live=args.use_aws)
