@@ -1,13 +1,13 @@
 [
   {
-    "account_id": "123456789012",
-    "account_name": "NonProd-Marketing-Account",
+    "account_id": "040707863982",
+    "account_name": "NonProd-Engineering-Dev",
     "environment": "nonprod",
     "region": "us-east-1"
   },
   {
-    "account_id": "987654321098",
-    "account_name": "NonProd-Engineering-Dev",
+    "account_id": "123456789012",
+    "account_name": "NonProd-Marketing-Account",
     "environment": "nonprod",
     "region": "us-east-1"
   },
