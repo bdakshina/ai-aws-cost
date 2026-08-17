@@ -7,45 +7,53 @@ load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 MODEL_NAME = os.getenv("LLM_MODEL_NAME", "llama-3.3-70b-versatile")
+FALLBACK_MODELS = ["llama-3.3-70b-versatile", "llama3-70b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"]
 
 def call_llm(prompt: str, system_prompt: str = "You are CloudIntel FinOps AI Assistant.") -> str:
     """Calls Groq Cloud API if key is present, otherwise returns heuristic fallback response."""
     if GROQ_API_KEY and GROQ_API_KEY != "gsk_your_groq_api_key_here":
-        try:
-            from groq import Groq
-            client = Groq(api_key=GROQ_API_KEY)
-            response = client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.1,
-                max_tokens=1024
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            print(f"⚠️ Groq API call failed: {e}. Falling back to heuristic engine.")
+        from groq import Groq
+        client = Groq(api_key=GROQ_API_KEY)
+        
+        models_to_try = [MODEL_NAME] + [m for m in FALLBACK_MODELS if m != MODEL_NAME]
+        for model in models_to_try:
+            try:
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.1,
+                    max_tokens=1024
+                )
+                return response.choices[0].message.content
+            except Exception as e:
+                err_msg = str(e)
+                if "model_not_found" in err_msg or "404" in err_msg:
+                    continue
+                print(f"[WARNING] Groq API call failed on model {model}: {err_msg}. Falling back to heuristic engine.")
+                break
 
     # Heuristic Fallback Engine
     return fallback_llm_response(prompt, system_prompt)
 
 def fallback_llm_response(prompt: str, system_prompt: str) -> str:
-    """Heuristic fallback engine when API key is missing or API call fails."""
+    """Heuristic fallback engine when API key is missing, invalid, or API call fails."""
     prompt_lower = prompt.lower()
     
     # 1. Text-to-SQL Fallbacks
     if "text-to-sql" in system_prompt.lower() or "generate sql" in prompt_lower or "select" in system_prompt.lower():
         if "lambda" in prompt_lower and ("expensive" in prompt_lower or "cost" in prompt_lower or "top" in prompt_lower):
-            return "SELECT function_name, business_unit, memory_allocated_mb, memory_max_used_mb, (daily_cost * 30) AS estimated_monthly_cost FROM lambda_metrics JOIN raw_cost_reports ON lambda_metrics.function_arn = raw_cost_reports.resource_id ORDER BY estimated_monthly_cost DESC LIMIT 5;"
+            return "SELECT lambda_metrics.function_name, lambda_metrics.business_unit, lambda_metrics.memory_allocated_mb, lambda_metrics.memory_max_used_mb, (raw_cost_reports.daily_cost * 30) AS estimated_monthly_cost FROM lambda_metrics JOIN raw_cost_reports ON lambda_metrics.function_arn = raw_cost_reports.resource_id ORDER BY estimated_monthly_cost DESC LIMIT 5;"
         elif "s3" in prompt_lower or "lifecycle" in prompt_lower or "bucket" in prompt_lower:
-            return "SELECT bucket_name, business_unit, (storage_bytes_standard / 1e12) AS standard_tb, oldest_object_age_days, has_lifecycle_policy FROM s3_storage_metrics WHERE has_lifecycle_policy = FALSE ORDER BY standard_tb DESC;"
+            return "SELECT s3_storage_metrics.bucket_name, s3_storage_metrics.business_unit, (s3_storage_metrics.storage_bytes_standard / 1e12) AS standard_tb, s3_storage_metrics.oldest_object_age_days, s3_storage_metrics.has_lifecycle_policy FROM s3_storage_metrics WHERE s3_storage_metrics.has_lifecycle_policy = FALSE ORDER BY standard_tb DESC;"
         elif "ecs" in prompt_lower or "container" in prompt_lower:
-            return "SELECT task_arn, service_name, business_unit, cpu_reserved, cpu_utilization_max, memory_reserved, memory_utilization_max FROM ecs_task_metrics WHERE cpu_utilization_max < 15.0 ORDER BY cpu_reserved DESC;"
+            return "SELECT ecs_task_metrics.task_arn, ecs_task_metrics.service_name, ecs_task_metrics.business_unit, ecs_task_metrics.cpu_reserved, ecs_task_metrics.cpu_utilization_max, ecs_task_metrics.memory_reserved, ecs_task_metrics.memory_utilization_max FROM ecs_task_metrics WHERE ecs_task_metrics.cpu_utilization_max < 15.0 ORDER BY ecs_task_metrics.cpu_reserved DESC;"
         elif "marketing" in prompt_lower:
-            return "SELECT resource_type, resource_id, SUM(daily_cost) AS total_cost FROM raw_cost_reports WHERE business_unit = 'Marketing' GROUP BY resource_type, resource_id ORDER BY total_cost DESC;"
+            return "SELECT raw_cost_reports.resource_type, raw_cost_reports.resource_id, SUM(raw_cost_reports.daily_cost) AS total_cost FROM raw_cost_reports WHERE raw_cost_reports.business_unit = 'Marketing' GROUP BY raw_cost_reports.resource_type, raw_cost_reports.resource_id ORDER BY total_cost DESC;"
         else:
-            return "SELECT resource_type, business_unit, SUM(daily_cost) AS total_cost FROM raw_cost_reports GROUP BY resource_type, business_unit ORDER BY total_cost DESC LIMIT 10;"
+            return "SELECT raw_cost_reports.resource_type, raw_cost_reports.business_unit, SUM(raw_cost_reports.daily_cost) AS total_cost FROM raw_cost_reports GROUP BY raw_cost_reports.resource_type, raw_cost_reports.business_unit ORDER BY total_cost DESC LIMIT 10;"
 
     # 2. IaC Generation Fallbacks
     if "cloudformation" in system_prompt.lower() or "template" in prompt_lower:

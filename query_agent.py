@@ -54,7 +54,10 @@ class QueryAgent:
         sql_system_prompt = f"""You are a FinOps Text-to-SQL AI Agent for DuckDB.
 {schema_info}
 Your job is to translate the user's natural language question into a valid, read-only ANSI SQL SELECT query.
-Output ONLY the executable SQL query enclosed in ```sql ... ``` code block. Do NOT include markdown explanations outside the SQL code block.
+
+CRITICAL DUCKDB SQL RULES:
+1. When joining tables (e.g. JOINing raw_cost_reports with lambda_metrics, ecs_task_metrics, or s3_storage_metrics), ALWAYS qualify common columns like `business_unit` using full table names or aliases (e.g. `lambda_metrics.business_unit` or `raw_cost_reports.business_unit`) to prevent ambiguous column errors.
+2. Output ONLY the executable SQL query enclosed in ```sql ... ``` code block. Do NOT include markdown explanations outside the SQL code block.
 """
         sql_raw_output = call_llm(user_question, system_prompt=sql_system_prompt)
         clean_sql = extract_sql_query(sql_raw_output)
