@@ -1,0 +1,32 @@
+[
+  {
+    "function_arn": "arn:aws:lambda:us-east-1:123456789012:function:marketing-promo-notifier",
+    "function_name": "marketing-promo-notifier",
+    "business_unit": "Marketing",
+    "memory_allocated_mb": 3072,
+    "memory_max_used_mb": 210,
+    "avg_duration_ms": 320.5,
+    "invocations_count": 150000,
+    "timeout_seconds": 30
+  },
+  {
+    "function_arn": "arn:aws:lambda:us-east-1:123456789012:function:eng-auth-token-verifier",
+    "function_name": "eng-auth-token-verifier",
+    "business_unit": "Engineering",
+    "memory_allocated_mb": 1024,
+    "memory_max_used_mb": 420,
+    "avg_duration_ms": 85.0,
+    "invocations_count": 450000,
+    "timeout_seconds": 15
+  },
+  {
+    "function_arn": "arn:aws:lambda:us-east-1:123456789012:function:datasci-batch-processor",
+    "function_name": "datasci-batch-processor",
+    "business_unit": "DataScience",
+    "memory_allocated_mb": 4096,
+    "memory_max_used_mb": 380,
+    "avg_duration_ms": 1420.0,
+    "invocations_count": 85000,
+    "timeout_seconds": 300
+  }
+]

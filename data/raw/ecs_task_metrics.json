@@ -1,0 +1,50 @@
+[
+  {
+    "task_arn": "arn:aws:ecs:us-east-1:123456789012:task-definition/marketing-web-app:1",
+    "cluster_name": "marketing-prod-cluster",
+    "service_name": "marketing-frontend-service",
+    "business_unit": "Marketing",
+    "cpu_reserved": 1024,
+    "memory_reserved": 2048,
+    "cpu_utilization_max": 45.2,
+    "memory_utilization_max": 52.0,
+    "launch_type": "EC2",
+    "has_security_sidecar": true
+  },
+  {
+    "task_arn": "arn:aws:ecs:us-east-1:123456789012:task-definition/marketing-analytics:2",
+    "cluster_name": "marketing-prod-cluster",
+    "service_name": "marketing-batch-analytics",
+    "business_unit": "Marketing",
+    "cpu_reserved": 4096,
+    "memory_reserved": 16384,
+    "cpu_utilization_max": 6.8,
+    "memory_utilization_max": 8.5,
+    "launch_type": "EC2",
+    "has_security_sidecar": true
+  },
+  {
+    "task_arn": "arn:aws:ecs:us-east-1:123456789012:task-definition/eng-api-gateway:4",
+    "cluster_name": "engineering-core-cluster",
+    "service_name": "eng-api-router",
+    "business_unit": "Engineering",
+    "cpu_reserved": 2048,
+    "memory_reserved": 4096,
+    "cpu_utilization_max": 38.5,
+    "memory_utilization_max": 42.1,
+    "launch_type": "EC2",
+    "has_security_sidecar": true
+  },
+  {
+    "task_arn": "arn:aws:ecs:us-east-1:123456789012:task-definition/datasci-model-trainer:1",
+    "cluster_name": "datascience-ml-cluster",
+    "service_name": "datasci-worker-service",
+    "business_unit": "DataScience",
+    "cpu_reserved": 8192,
+    "memory_reserved": 32768,
+    "cpu_utilization_max": 9.2,
+    "memory_utilization_max": 11.4,
+    "launch_type": "EC2",
+    "has_security_sidecar": true
+  }
+]

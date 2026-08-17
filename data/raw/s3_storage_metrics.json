@@ -1,0 +1,35 @@
+[
+  {
+    "bucket_name": "mktg-campaign-raw-logs-2026",
+    "business_unit": "Marketing",
+    "kms_key_arn": "arn:aws:kms:us-east-1:123456789012:key/k8f9a2b1-1111-2222-3333-mktg-key",
+    "is_kms_encrypted": true,
+    "storage_bytes_standard": 12500000000000,
+    "storage_bytes_glacier": 0,
+    "object_count": 4800000,
+    "has_lifecycle_policy": false,
+    "oldest_object_age_days": 180
+  },
+  {
+    "bucket_name": "eng-build-artifacts-backup",
+    "business_unit": "Engineering",
+    "kms_key_arn": "arn:aws:kms:us-east-1:123456789012:key/e3f4a5b6-4444-5555-6666-eng-key",
+    "is_kms_encrypted": true,
+    "storage_bytes_standard": 1200000000000,
+    "storage_bytes_glacier": 2000000000000,
+    "object_count": 950000,
+    "has_lifecycle_policy": true,
+    "oldest_object_age_days": 365
+  },
+  {
+    "bucket_name": "datasci-model-checkpoints",
+    "business_unit": "DataScience",
+    "kms_key_arn": "arn:aws:kms:us-east-1:123456789012:key/d7e8f9a0-7777-8888-9999-datasci-key",
+    "is_kms_encrypted": true,
+    "storage_bytes_standard": 22000000000000,
+    "storage_bytes_glacier": 0,
+    "object_count": 1200000,
+    "has_lifecycle_policy": false,
+    "oldest_object_age_days": 240
+  }
+]
