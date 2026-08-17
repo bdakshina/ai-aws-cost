@@ -7,6 +7,7 @@ from ingest import ingest_data, DUCKDB_PATH
 from query_agent import QueryAgent
 from analyzer import WasteAnalyzer
 from iac_generator import IaCGenerator
+from aws_connector import AWSNonProdConnector, load_accounts_config
 
 # Page Configuration
 st.set_page_config(
@@ -101,6 +102,21 @@ st.markdown('<div class="sub-header">Multi-Service FinOps Intelligence (ECS, Lam
 # Sidebar Controls
 st.sidebar.title("⚙️ System Controls")
 st.sidebar.markdown("---")
+
+# 1. AWS Account Selector (Loaded from accounts.json)
+accounts_list = load_accounts_config()
+account_options = ["All Accounts"] + [f"{a['account_name']} ({a['account_id']})" for a in accounts_list]
+selected_account_str = st.sidebar.selectbox("Select Target AWS Account (accounts.json):", options=account_options)
+
+# 2. AWS Authentication Status
+connector = AWSNonProdConnector()
+aws_authed = connector.is_aws_authenticated()
+if aws_authed:
+    st.sidebar.success("✓ AWS Access Keys Active")
+else:
+    st.sidebar.info("ℹ️ Offline / Synthetic Data Mode")
+
+st.sidebar.markdown("---")
 st.sidebar.markdown("**🤖 AI Engine**: `Groq API (llama-3.3-70b)`")
 st.sidebar.markdown("**💾 Analytical DB**: `DuckDB (cloudintel.duckdb)`")
 st.sidebar.markdown("---")
@@ -116,7 +132,7 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("🔄 Data Pipeline Operations")
 if st.sidebar.button("Run ETL Ingestion Pipeline"):
     with st.spinner("Executing ETL ingestion..."):
-        ingest_data()
+        ingest_data(use_aws_live=aws_authed)
         st.sidebar.success("ETL completed successfully!")
 
 if st.sidebar.button("Run Waste Analyzer"):

@@ -118,13 +118,16 @@ docker push $ECR_URI:latest
 
 ## Environment Matrix & Prerequisites
 
+## Environment Matrix & Prerequisites
+
 ### 1. Phase 1 & 1.5 (POC & Non-Prod Environment)
 
 | Requirement | Specification |
 | :--- | :--- |
 | **Operating System** | Linux / macOS / Windows 10+ (PowerShell or Bash) |
 | **Runtime Environment** | Python 3.10+ |
-| **AWS SDK** | `boto3>=1.28.0` |
+| **AWS SDK & Credentials** | `boto3>=1.28.0` with `AWS_ACCESS_KEY_ID` & `AWS_SECRET_ACCESS_KEY` |
+| **Account Discovery** | Loaded from `accounts.json` or entered via Streamlit UI |
 | **IAM Permissions** | Read-Only: `ce:*`, `cloudwatch:*`, `ecs:*`, `lambda:*`, `s3:*`, `servicecatalog:*` |
 | **System Memory** | Minimum 4 GB RAM (8 GB recommended) |
 | **Storage** | 1 GB free disk space |
@@ -135,6 +138,8 @@ docker push $ECR_URI:latest
 | Component | Target AWS Service / Architecture |
 | :--- | :--- |
 | **Application Hosting** | **AWS App Runner** or **Amazon ECS Fargate** (Private Subnets) |
+| **AWS Authentication** | **Central System Account Access** (Central IAM Execution Role federating target accounts) |
+| **Account Discovery** | **AWS Organizations / System Account Registry** (Auto-discovers registered accounts) |
 | **Load Balancing & Auth** | **AWS ALB** + AWS IAM / Banking SSO (OIDC / SAML 2.0) |
 | **Analytical Query Engine**| **AWS Athena** / **Amazon Redshift Serverless** |
 | **Data Lake Storage** | **AWS S3 Bucket** + **AWS Glue Data Catalog** |
@@ -152,8 +157,14 @@ Create a `.env` file in the project root directory (ensure `.env` is listed in `
 APP_ENV=nonprod
 LOG_LEVEL=INFO
 
-# AWS Credentials / Region
+# AWS Access Key Credentials & Region (Phase 1 POC)
+AWS_ACCESS_KEY_ID=AKIA...
+AWS_SECRET_ACCESS_KEY=your_secret_access_key_here
+AWS_SESSION_TOKEN=optional_session_token_here
 AWS_DEFAULT_REGION=us-east-1
+
+# Target Account Configuration File
+ACCOUNTS_CONFIG_PATH=accounts.json
 
 # Phase 1/1.5 LLM Provider Configuration
 GROQ_API_KEY=gsk_your_groq_api_key_here
@@ -174,6 +185,7 @@ ENFORCE_ECS_SIDECARS=true
 ENFORCE_LAMBDA_MEMORY_BOUNDS=true
 ENFORCE_ZERO_PUBLIC_ACCESS=true
 ```
+
 
 ---
 

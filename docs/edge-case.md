@@ -26,10 +26,13 @@ It provides explicit failure definitions, risk severity levels, and programmatic
 | **EC-12** | Guardrails Engine (`guardrails.py`)| S3 Lifecycle Rule Stripping Public Access Block | **HIGH** | Force `PublicAccessBlockConfiguration` block in generated CloudFormation template output. |
 | **EC-13** | IaC Generator (`iac_generator.py`)| Malformed CloudFormation YAML / Service Catalog Schema | **HIGH** | Pre-output YAML syntax validation using `pyyaml` / `cfn-lint` before UI rendering. |
 | **EC-14** | User Interface (`app.py`) | Large Result Set Browser Rendering Lag (50k+ Rows) | **MEDIUM** | Pagination, table limit caps (`LIMIT 1000`), and Streamlit data framing optimizations. |
+| **EC-15** | AWS Connector (`aws_connector.py`)| Invalid / Expired AWS Access Keys or AccessDenied | **HIGH** | Catch `ClientError` / `UnrecognizedClientException`, display notification in UI, and fallback to synthetic dataset. |
+| **EC-16** | Account Discovery (`ingest.py`) | Missing or Malformed `accounts.json` File | **MEDIUM** | Auto-generate default `accounts.json` containing default account metadata and validate JSON structure. |
 
 ---
 
 ## Detailed Edge Case Specifications & Mitigations
+
 
 ### 1. Data Ingestion & Database Edge Cases (`ingest.py`)
 

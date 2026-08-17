@@ -19,6 +19,8 @@ To ensure rapid validation, immediate business value, and smooth stakeholder onb
 | :--- | :--- | :--- |
 | **Target Scope** | **Amazon ECS** (EC2 launch type), **AWS Lambda** (Serverless), **Amazon S3** (Storage) | **All AWS Resources** (EC2, S3, RDS, Lambda, DynamoDB, Network) |
 | **AI / LLM Engine** | **Groq Cloud API** (`llama-3.3-70b-versatile`) — *100% Free API* | **Anthropic Claude 3.5 Sonnet** — *Enterprise License* |
+| **AWS Authentication**| **AWS Access Keys** (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` via `.env` or UI) | **System Account Access** (Central System Account federating all AWS Accounts) |
+| **Account Discovery** | **`accounts.json` Configuration** or Interactive Streamlit UI Account Selector | **AWS Organizations / System Account Registry** (Auto-discovers registered Accounts) |
 | **Compliance Layer** | **Banking Guardrails Engine** (Enforces KMS encryption, non-degradable security rules) | Enterprise Policy Engine (AWS OPA / Sentinel / AWS Config integration) |
 | **Database Pattern** | **DuckDB** (Free in-process OLAP analytical database) | **AWS Athena / Amazon Redshift / Snowflake** |
 | **Data Storage / ETL** | Local File Directory (`data/raw/`, `data/processed/`) or AWS S3 Bucket + DuckDB | AWS S3 Bucket + AWS Glue Data Catalog |
@@ -35,6 +37,17 @@ To ensure rapid validation, immediate business value, and smooth stakeholder onb
     - **Seamless Upgrade Path**: Built using standard OpenAI/Groq API client abstractions, allowing a 1-line configuration swap to Anthropic Claude 3.5 Sonnet once the enterprise license is approved.
 - **Phase 2 Production Target — Anthropic Claude 3.5 Sonnet**:
   - Official enterprise target model to be enabled upon POC submission and license approval.
+
+## AWS Account Discovery & Authentication Strategy
+- **Phase 1 POC Authentication & Account Discovery**:
+  - **Account ID Input**: Target AWS Account IDs are loaded from a JSON configuration file (`accounts.json`) or entered/selected directly in the Streamlit UI.
+  - **Access Key Authentication**: Connects using standard AWS Access Key ID, Secret Access Key, and optional Session Token (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`) provided in environment variables (`.env`), JSON file, or UI credentials inputs for rapid validation.
+  - **Dynamic Mult-Account Polling**: The data pipeline queries metrics and Cost Explorer specifically filtered for the selected Account ID(s).
+- **Phase 2 Enterprise Production System Account Governance**:
+  - **System Account Access Model**: Transitions to a **Central System Account** (AWS Organizations / Central Management Account).
+  - **Central Account Registry**: All target enterprise AWS accounts are registered within the system account.
+  - **Federated Role Assumption**: CloudIntel runs under the central System Account IAM Execution Role, automatically assuming federated cross-account roles across all onboarded AWS accounts without storing or handling individual AWS access keys.
+
 
 ## Enterprise Banking Compliance & Security Guardrails Strategy
 In banking and financial institutions, AI-driven cost optimization must **never** degrade security, compliance, or data protection standards. CloudIntel incorporates a policy-driven **Banking Guardrails Engine** that intercepts candidate AI recommendations before they are shown to users or converted to CloudFormation templates.

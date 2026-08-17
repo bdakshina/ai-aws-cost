@@ -19,11 +19,14 @@ To enable rapid validation, immediate stakeholder alignment, and zero-cost proto
 | :--- | :--- | :--- |
 | **Primary Cloud Resources** | **Amazon ECS** (EC2 launch type), **AWS Lambda**, **Amazon S3** | **All AWS Resources** (EC2, S3, RDS, Lambda, DynamoDB, Network) |
 | **AI / LLM Model Engine** | **Groq Cloud API** (`llama-3.3-70b-versatile`) — *100% Free API* | **Anthropic Claude 3.5 Sonnet** — *Enterprise License* |
+| **AWS Authentication** | **AWS Access Keys** (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` via `.env` or UI) | **System Account Access** (Central System Account federating all AWS Accounts) |
+| **Account Discovery** | **`accounts.json` Configuration** or Interactive Streamlit UI Account Selector | **AWS Organizations / System Account Registry** (Auto-discovers registered Accounts) |
 | **Compliance Layer** | **Banking Guardrails Engine** (Enforces KMS encryption, security policies) | Enterprise Policy Engine (AWS OPA / Sentinel / AWS Config) |
 | **Database & Analytical Engine** | **DuckDB** (Free in-process OLAP analytical database / S3 `httpfs`) | **AWS Athena / Amazon Redshift / Snowflake** |
 | **Storage & Data Lake** | Local Directory (`data/raw/`, `data/processed/`) or AWS S3 Bucket | AWS S3 Bucket + AWS Glue Data Catalog |
 | **User Interface (UI)** | **Streamlit Application** (Local / Streamlit Community Cloud) | Enterprise Web Portal (Streamlit / Next.js on AWS App Runner) |
 | **Remediation Target** | **AWS CloudFormation (YAML/JSON)** & AWS Service Catalog Product Templates | AWS CI/CD Pipeline (AWS Service Catalog Portfolio / CodePipeline) |
+
 
 ---
 
@@ -143,15 +146,19 @@ sequenceDiagram
 
 ## 5. Detailed Component Specifications
 
-### 5.1 Module 1: Data Pipeline (`ingest.py`)
+### 5.1 Module 1: Data Pipeline (`ingest.py` & `aws_connector.py`)
 - **Purpose**: Ingests raw Cost & Usage Reports (CUR), CloudWatch ECS container metrics (EC2 launch type), AWS Lambda invocation/duration metrics, and S3 storage class/KMS statistics, standardizing formats into DuckDB.
+- **Multi-Account & Authentication Strategy**:
+  - **Phase 1 (POC Access Keys & JSON Discovery)**: Authenticates using AWS Access Keys (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`) provided in `.env`, `accounts.json`, or Streamlit UI inputs. Parses target Account IDs from `accounts.json` configuration file or UI dropdowns.
+  - **Phase 2 (Enterprise System Account Governance)**: Operates under a central System Account IAM Execution Role, assuming federated cross-account roles across all target enterprise AWS accounts auto-discovered via AWS Organizations.
 - **Inputs**:
+  - `accounts.json` — Account configuration mapping Account IDs, names, regions, and environment tags.
   - `data/raw/aws_cur_export.csv` — Billing line items (Unblended Cost, Usage Amount, Resource ID, Tags).
   - `data/raw/ecs_task_metrics.json` — ECS container task metrics (EC2 launch type, CPU/Memory reserved vs peak used).
   - `data/raw/lambda_metrics.json` — Serverless execution metrics (Memory allocated, Max memory used, Execution duration, Invocations).
   - `data/raw/s3_storage_metrics.json` — Object storage stats (Standard/Glacier storage bytes, KMS key ARN, Encryption flag, Object age).
 - **Operations**:
-  1. Parses raw CSV and JSON files using `pandas`.
+  1. Parses raw CSV, JSON files, or live AWS `boto3` queries based on authenticated Account ID.
   2. Normalizes resource metadata into standardized columns.
   3. Computes daily resource metrics and links cost data with performance metrics using `resource_id`.
   4. Writes aggregated tables into `data/processed/cloudintel.duckdb`.
@@ -191,10 +198,11 @@ sequenceDiagram
 ### 5.6 Module 6: User Interface (`app.py`)
 - **Framework**: Streamlit web application.
 - **Layout**:
-  - **Sidebar**: LLM status (Groq API connected), Database status (DuckDB loaded), Business Unit filter, Banking Guardrails Mode toggle (Active/Audit).
+  - **Sidebar**: LLM status (Groq API connected), Database status (DuckDB loaded), **AWS Account Selector / Account ID Input**, **AWS Access Keys Credentials Status**, Business Unit filter, Banking Guardrails Mode toggle (Active/Audit).
   - **Tab 1: Chat Assistant**: Interactive Natural Language Q&A with text-to-SQL visibility across ECS, Lambda, and S3.
   - **Tab 2: Proactive Savings Dashboard**: Recommendation cards sorted by estimated monthly savings ($) displaying Banking Compliance Pass badges.
   - **Tab 3: Compliance & Guardrail Audit Log**: Transparent view of rejected unsafe recommendations (e.g., "KMS Key Removal Blocked").
+
   - **Tab 4: Remediation & CloudFormation Studio**: Interactive AWS CloudFormation YAML code viewer with copy/download options and AWS Service Catalog product links.
 
 ---

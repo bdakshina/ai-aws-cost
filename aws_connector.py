@@ -6,38 +6,65 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+ACCOUNTS_CONFIG_PATH = os.getenv("ACCOUNTS_CONFIG_PATH", os.path.join(os.path.dirname(__file__), "accounts.json"))
+
+def load_accounts_config() -> list:
+    """Loads target AWS accounts from accounts.json configuration file."""
+    if os.path.exists(ACCOUNTS_CONFIG_PATH):
+        try:
+            with open(ACCOUNTS_CONFIG_PATH, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"[WARNING] Loading accounts.json: {e}")
+    return [
+        {"account_id": "123456789012", "account_name": "NonProd-Default-Account", "environment": "nonprod", "region": "us-east-1"}
+    ]
+
 class AWSNonProdConnector:
     """
     Live Non-Prod AWS Account Data Collector.
-    Uses boto3 to fetch real Cost Explorer, CloudWatch, ECS, Lambda, and S3 metrics.
+    Authenticates via AWS Access Key ID, Secret Access Key, & Session Token.
+    Queries metrics filtered by target Account IDs from accounts.json or UI.
     """
 
-    def __init__(self, region_name: str = "us-east-1"):
+    def __init__(self, region_name: str = "us-east-1", aws_access_key_id: str = None, aws_secret_access_key: str = None, aws_session_token: str = None):
         self.region_name = os.getenv("AWS_DEFAULT_REGION", region_name)
+        self.aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID")
+        self.aws_secret_access_key = aws_secret_access_key or os.getenv("AWS_SECRET_ACCESS_KEY")
+        self.aws_session_token = aws_session_token or os.getenv("AWS_SESSION_TOKEN")
         self.boto_available = False
+
         try:
             import boto3
             self.boto3 = boto3
-            self.session = boto3.Session(region_name=self.region_name)
+            if self.aws_access_key_id and self.aws_secret_access_key:
+                self.session = boto3.Session(
+                    aws_access_key_id=self.aws_access_key_id,
+                    aws_secret_access_key=self.aws_secret_access_key,
+                    aws_session_token=self.aws_session_token,
+                    region_name=self.region_name
+                )
+            else:
+                self.session = boto3.Session(region_name=self.region_name)
             self.boto_available = True
         except ImportError:
-            print("⚠️ boto3 package not installed. Using local synthetic fallback.")
+            print("[INFO] boto3 package not installed. Using local synthetic fallback.")
 
     def is_aws_authenticated(self) -> bool:
-        """Checks if valid non-prod AWS credentials / IAM role are active."""
+        """Checks if valid AWS Access Key credentials are active."""
         if not self.boto_available:
             return False
         try:
             sts = self.session.client("sts")
             identity = sts.get_caller_identity()
-            print(f"✓ AWS Non-Prod Authenticated Identity: {identity['Arn']} (Account: {identity['Account']})")
+            print(f"[AWS] Authenticated Identity: {identity['Arn']} (Account: {identity['Account']})")
             return True
         except Exception as e:
-            print(f"ℹ️ Live AWS Authentication not active ({e}). Defaulting to offline dataset.")
+            print(f"[INFO] AWS Access Key Authentication not active ({e}). Defaulting to offline dataset.")
             return False
 
-    def fetch_cost_explorer_reports(self, days: int = 7) -> pd.DataFrame:
-        """Queries AWS Cost Explorer API for unblended daily costs by service and tag."""
+    def fetch_cost_explorer_reports(self, target_account_id: str = None, days: int = 7) -> pd.DataFrame:
+        """Queries AWS Cost Explorer API for unblended daily costs filtered by Account ID."""
         if not self.is_aws_authenticated():
             return pd.DataFrame()
 
@@ -46,21 +73,36 @@ class AWSNonProdConnector:
         start_date = end_date - datetime.timedelta(days=days)
 
         try:
-            response = ce.get_cost_and_usage(
-                TimePeriod={
+            filter_expr = None
+            if target_account_id and target_account_id != "All Accounts":
+                filter_expr = {
+                    "Dimensions": {
+                        "Key": "LINKED_ACCOUNT",
+                        "Values": [target_account_id]
+                    }
+                }
+
+            params = {
+                "TimePeriod": {
                     "Start": start_date.strftime("%Y-%m-%d"),
                     "End": end_date.strftime("%Y-%m-%d")
                 },
-                Granularity="DAILY",
-                Metrics=["UnblendedCost", "UsageQuantity"],
-                GroupBy=[
+                "Granularity": "DAILY",
+                "Metrics": ["UnblendedCost", "UsageQuantity"],
+                "GroupBy": [
                     {"Type": "DIMENSION", "Key": "SERVICE"},
                     {"Type": "TAG", "Key": "BusinessUnit"}
                 ]
-            )
+            }
+            if filter_expr:
+                params["Filter"] = filter_expr
+
+            response = ce.get_cost_and_usage(**params)
 
             records = []
             rec_id = 1
+            acct_label = target_account_id if target_account_id else "123456789012"
+
             for time_period in response.get("ResultsByTime", []):
                 usage_date = time_period["TimePeriod"]["Start"]
                 for group in time_period.get("Groups", []):
@@ -74,9 +116,9 @@ class AWSNonProdConnector:
                     usage_qty = float(group["Metrics"]["UsageQuantity"]["Amount"])
 
                     records.append({
-                        "line_item_id": f"aws_live_{rec_id:04d}",
+                        "line_item_id": f"aws_{acct_label}_{rec_id:04d}",
                         "usage_start_date": f"{usage_date} 00:00:00",
-                        "resource_id": f"arn:aws:{service.lower().replace(' ', '')}:{self.region_name}:live-resource",
+                        "resource_id": f"arn:aws:{service.lower().replace(' ', '')}:{self.region_name}:{acct_label}:live-resource",
                         "resource_type": service,
                         "business_unit": bu_tag,
                         "daily_cost": round(cost, 4),
@@ -86,7 +128,7 @@ class AWSNonProdConnector:
 
             return pd.DataFrame(records)
         except Exception as e:
-            print(f"⚠️ Cost Explorer Query Warning: {e}")
+            print(f"[WARNING] Cost Explorer Query: {e}")
             return pd.DataFrame()
 
     def fetch_ecs_task_metrics(self) -> list:
@@ -95,7 +137,6 @@ class AWSNonProdConnector:
             return []
         
         ecs = self.session.client("ecs")
-        cw = self.session.client("cloudwatch")
         live_ecs = []
 
         try:
@@ -107,7 +148,6 @@ class AWSNonProdConnector:
                     continue
                 described_tasks = ecs.describe_tasks(cluster=c_arn, tasks=tasks[:10]).get("tasks", [])
                 for t in described_tasks:
-                    task_arn = t["taskArn"]
                     td_arn = t["taskDefinitionArn"]
                     containers = t.get("containers", [])
                     sidecar_present = len(containers) > 1
@@ -126,7 +166,7 @@ class AWSNonProdConnector:
                     })
             return live_ecs
         except Exception as e:
-            print(f"⚠️ Live ECS query warning: {e}")
+            print(f"[WARNING] Live ECS query: {e}")
             return []
 
     def fetch_lambda_metrics(self) -> list:
@@ -151,7 +191,7 @@ class AWSNonProdConnector:
                 })
             return live_lambda
         except Exception as e:
-            print(f"⚠️ Live Lambda query warning: {e}")
+            print(f"[WARNING] Live Lambda query: {e}")
             return []
 
     def fetch_s3_metrics(self) -> list:
@@ -165,7 +205,6 @@ class AWSNonProdConnector:
             buckets = s3.list_buckets().get("Buckets", [])
             for b in buckets:
                 b_name = b["Name"]
-                # Check encryption
                 is_kms = False
                 kms_arn = "arn:aws:kms:us-east-1:123456789012:key/default"
                 try:
@@ -177,7 +216,6 @@ class AWSNonProdConnector:
                 except Exception:
                     pass
 
-                # Check lifecycle
                 has_lifecycle = False
                 try:
                     lc = s3.get_bucket_lifecycle_configuration(Bucket=b_name)
@@ -199,10 +237,10 @@ class AWSNonProdConnector:
                 })
             return live_s3
         except Exception as e:
-            print(f"⚠️ Live S3 query warning: {e}")
+            print(f"[WARNING] Live S3 query: {e}")
             return []
 
 if __name__ == "__main__":
     connector = AWSNonProdConnector()
-    authenticated = connector.is_aws_authenticated()
-    print("AWS Non-Prod Connection Status:", "CONNECTED" if authenticated else "OFFLINE/SYNTHETIC MODE")
+    print("Loaded Accounts:", [a["account_id"] for a in load_accounts_config()])
+    print("AWS Connection Status:", "CONNECTED" if connector.is_aws_authenticated() else "OFFLINE/SYNTHETIC MODE")
