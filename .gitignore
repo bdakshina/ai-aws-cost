@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+*.env
+
+# Data & Database
+data/processed/*.duckdb
+data/processed/*.duckdb.wal
+
+# IDE / Logs
+.vscode/
+.idea/
+*.log
