@@ -1,32 +1,36 @@
-# CloudIntel — Enterprise AI FinOps Platform
+# CloudIntel — Enterprise AI FinOps Platform & Claude Code Plugin Ecosystem
 ## System Architecture Specification
 
 ---
 
 ## 1. Executive Summary & Vision
 
-**CloudIntel** is an enterprise-grade AI FinOps intelligence platform designed to eliminate cloud waste across decentralized Business Units (BUs). Traditional cloud management tools produce complex JSON logs and static charts that business stakeholders struggle to interpret. Furthermore, cost optimization knowledge acquired in one BU rarely propagates to others.
+**CloudIntel** is an enterprise-grade AI FinOps intelligence platform engineered to eliminate cloud waste across decentralized Business Units (BUs) in strict compliance with banking and financial sector standards.
 
-In a banking environment, AI-driven cost optimization must operate under strict security, data protection, and enterprise compliance standards, adhering strictly to bank provisioning workflows. Optimization tools often make dangerous suggestions—such as deleting AWS Managed KMS keys or turning off encryption to cut costs. Furthermore, infrastructure changes in our bank are strictly governed by **AWS Service Catalog** using compliant **AWS CloudFormation** templates. CloudIntel bridges this gap by combining an analytical data pipeline, Large Language Model (LLM) reasoning, automated AWS CloudFormation template generation (integrated with AWS Service Catalog), and an active **Banking Security & Compliance Guardrails Engine**. Stakeholders interact with their cloud infrastructure via plain English, receive contextual cost explanations, view compliance-vetted waste recommendations, and generate one-click AWS CloudFormation remediation code.
+Traditional cloud management tools produce complex JSON logs, obscure cost graphs, and disconnected dashboards that fail to provide actionable clarity to engineering and business stakeholders. Furthermore, in banking environments, cost optimization is severely constrained: AI recommendations must **never** weaken security (e.g., removing AWS KMS encryption, dropping container monitoring sidecars, or opening public access), and all infrastructure provisioning is strictly governed by **AWS Service Catalog** using compliant **AWS CloudFormation** templates.
+
+To bring proactive FinOps intelligence directly into developer workflows, **CloudIntel is powered natively by the Anthropic Claude API (Claude 3.5 Sonnet / Claude 3.7 Sonnet) and architected as an integrated Claude Code Plugin and Anthropic Agent SDK ecosystem (`claude-code-plugins`)**.
+
+Stakeholders interact with their cloud infrastructure through natural language inside **Claude Code CLI**, IDEs, and automated CI/CD pipelines. The AI agent autonomously ingests multi-account telemetry and billing data into an in-process DuckDB OLAP engine, executes multi-dimensional waste reasoning, enforces rigorous **Banking Security & Compliance Guardrails**, and auto-generates compliant **AWS CloudFormation** templates formatted for enterprise **AWS Service Catalog** deployment.
 
 ---
 
-## 2. Two-Phase Architecture Strategy
+## 2. Technology & Architectural Strategy Matrix
 
-To enable rapid validation, immediate stakeholder alignment, and zero-cost prototyping before procuring enterprise licenses, CloudIntel uses a **Two-Phase Architecture Strategy**:
-
-| Component | Phase 1: Proof of Concept (POC) — Multi-Service Scope | Phase 2: Enterprise Production Scale |
+| Component | Specification / Technology | Purpose in Platform |
 | :--- | :--- | :--- |
-| **Primary Cloud Resources** | **Amazon ECS** (EC2 launch type), **AWS Lambda**, **Amazon S3** | **All AWS Resources** (EC2, S3, RDS, Lambda, DynamoDB, Network) |
-| **AI / LLM Model Engine** | **Groq Cloud API** (`llama-3.3-70b-versatile`) — *100% Free API* | **Anthropic Claude 3.5 Sonnet** — *Enterprise License* |
-| **AWS Authentication** | **AWS Access Keys** (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` via `.env` or UI) | **System Account Access** (Central System Account federating all AWS Accounts) |
-| **Account Discovery** | **`accounts.json` Configuration** or Interactive Streamlit UI Account Selector | **AWS Organizations / System Account Registry** (Auto-discovers registered Accounts) |
-| **Compliance Layer** | **Banking Guardrails Engine** (Enforces KMS encryption, security policies) | Enterprise Policy Engine (AWS OPA / Sentinel / AWS Config) |
-| **Database & Analytical Engine** | **DuckDB** (Free in-process OLAP analytical database / S3 `httpfs`) | **AWS Athena / Amazon Redshift / Snowflake** |
-| **Storage & Data Lake** | Local Directory (`data/raw/`, `data/processed/`) or AWS S3 Bucket | AWS S3 Bucket + AWS Glue Data Catalog |
-| **User Interface (UI)** | **Streamlit Application** (Local / Streamlit Community Cloud) | Enterprise Web Portal (Streamlit / Next.js on AWS App Runner) |
-| **Remediation Target** | **AWS CloudFormation (YAML/JSON)** & AWS Service Catalog Product Templates | AWS CI/CD Pipeline (AWS Service Catalog Portfolio / CodePipeline) |
-
+| **Primary AI Engine** | **Anthropic Claude API (`claude-3-7-sonnet-20250219` / `claude-3-5-sonnet-20241022`)** | Deep FinOps reasoning, accurate Text-to-SQL generation, native tool calling, and high-fidelity CloudFormation template authoring. |
+| **High-Throughput Triage** | **Anthropic Claude 3.5 Haiku (`claude-3-5-haiku-20241022`)** | Rapid billing record classification, log normalization, and real-time cost anomaly triage. |
+| **Agent Orchestration** | **Anthropic Agent SDK (`anthropic`)** | Multi-turn autonomous reasoning, tool calling, scratchpad memory, and structured Pydantic outputs. |
+| **Developer Interface** | **Claude Code Plugin & Slash Commands** | Direct integration into Claude Code CLI & IDE (`/finops-query`, `/finops-analyze`, `/finops-remediate`). |
+| **Prompt Optimization** | **Anthropic Prompt Caching (`cache_control`)** | Caching database schemas, banking compliance rules, and AWS pricing models for 90% API cost reduction. |
+| **Analytical Database** | **DuckDB (In-Process Columnar OLAP)** | High-performance analytical SQL queries over raw billing exports and CloudWatch metric logs without external database infrastructure costs. |
+| **Cloud Target** | **Amazon Web Services (AWS)** | Ingestion and remediation across ECS (EC2 launch type), Lambda, S3, RDS, DynamoDB, and VPC Networking. |
+| **AWS Authentication** | **AWS IAM Role Federation / Boto3** | System account federation across multi-account enterprise registries (`accounts.json` / AWS Organizations). |
+| **Compliance Layer** | **Banking Guardrails Engine** | Programmatic verification blocking unsafe AI recommendations (Mandatory KMS, sidecar retention, zero public access). |
+| **IaC Remediation** | **AWS CloudFormation & AWS Service Catalog** | Generates standardized, enterprise-compliant YAML/JSON CloudFormation templates ready for Service Catalog portfolios. |
+| **Containerization** | **VS Code Dev Containers (`.devcontainer`)** | Reproducible development environment with pre-installed Claude CLI, AWS CLI, DuckDB, and security sandboxes. |
+| **CI/CD Automation** | **GitLab CI/CD (`.gitlab/`)** | Automated linting, pytest suites, banking compliance verification, and CloudFormation security audits. |
 
 ---
 
@@ -34,53 +38,67 @@ To enable rapid validation, immediate stakeholder alignment, and zero-cost proto
 
 ```mermaid
 flowchart TB
-    subgraph Data_Layer ["1. Data Ingestion & Storage Layer"]
-        RawData["Raw Billing Exports, ECS (EC2) Logs, Lambda & S3 Stats\n(CSV / JSON)"] --> IngestEngine["ingest.py\n(ETL & Normalization Engine)"]
-        IngestEngine --> DuckDB[("DuckDB Database\n(data/processed/cloudintel.duckdb)")]
+    subgraph User_Interface_Layer ["1. Developer & Platform Interface Layer"]
+        CLI["Claude Code CLI\n(/finops-query, /finops-analyze, /finops-remediate)"]
+        IDE["IDE Plugin Integration\n(VS Code / JetBrains via Claude Code)"]
+        WebUI["Streamlit FinOps Portal\n(Visual Dashboard & CloudFormation Studio)"]
     end
 
-    subgraph LLM_Layer ["2. AI & Reasoning Engine"]
-        LLMWrapper["LLM Client Provider Wrapper\n(Groq API / Anthropic API)"]
-        GroqModel["Groq API: llama-3.3-70b-versatile\n(Phase 1 POC)"]
-        ClaudeModel["Anthropic Claude 3.5 Sonnet\n(Phase 2 Production)"]
-        LLMWrapper --> GroqModel
-        LLMWrapper --> ClaudeModel
-    end
-
-    subgraph Agent_Layer ["3. Application & Compliance Modules"]
-        QueryAgent["query_agent.py\n(Text-to-SQL + Synthesis Agent)"]
-        WasteAnalyzer["analyzer.py\n(Proactive Multi-Service Waste Engine)"]
-        GuardrailsEngine["guardrails.py\n(Banking Security & KMS Compliance Engine)"]
-        IaCGenerator["iac_generator.py\n(AWS CloudFormation & Service Catalog Generator)"]
+    subgraph Agent_Layer ["2. Claude Code Plugin & Anthropic Agent SDK Layer"]
+        AgentSDK["Anthropic Agent SDK Orchestrator\n(finops_autonomous_agent.py)"]
         
-        WasteAnalyzer --> GuardrailsEngine
+        subgraph Plugin_Tools ["finops-cost-optimizer Plugin Tools"]
+            T1["data_ingest_tool\n(Ingest CUR & Metrics)"]
+            T2["query_engine_tool\n(Text-to-SQL & Explainer)"]
+            T3["waste_analyzer_tool\n(Multi-Resource Reasoning)"]
+            T4["guardrails_tool\n(Banking Security Validator)"]
+            T5["iac_generator_tool\n(AWS CloudFormation Generator)"]
+            T6["aws_connector_tool\n(Boto3 Live Polling)"]
+        end
     end
 
-    subgraph UI_Layer ["4. User Interface Layer"]
-        StreamlitUI["app.py\n(Streamlit Interactive Web Portal)"]
-        ChatInterface["Natural Language Q&A Chat"]
-        Dashboard["Guardrail-Vetted Insights Dashboard"]
-        ComplianceBadge["Banking Compliance & Policy Logs"]
-        RemediationUI["One-Click CloudFormation / Service Catalog Fix"]
+    subgraph Claude_API_Layer ["3. Anthropic Claude API Cognitive Layer"]
+        ClaudeClient["claude_client.py\n(Messages API + Prompt Caching)"]
+        Claude37["Claude 3.7 Sonnet\n(Extended Thinking & FinOps Math)"]
+        Claude35["Claude 3.5 Sonnet\n(Tool Calling & IaC Synthesis)"]
+        ClaudeHaiku["Claude 3.5 Haiku\n(Fast Triage & Tagging)"]
         
-        StreamlitUI --> ChatInterface
-        StreamlitUI --> Dashboard
-        StreamlitUI --> ComplianceBadge
-        StreamlitUI --> RemediationUI
+        ClaudeClient --> Claude37
+        ClaudeClient --> Claude35
+        ClaudeClient --> ClaudeHaiku
     end
 
-    %% Data Flow Connections
-    DuckDB <--> QueryAgent
-    DuckDB <--> WasteAnalyzer
-    QueryAgent <--> LLMWrapper
-    WasteAnalyzer <--> LLMWrapper
-    GuardrailsEngine --> IaCGenerator
-    IaCGenerator <--> LLMWrapper
+    subgraph Data_Layer ["4. Analytical Data & Cloud Infrastructure Layer"]
+        DuckDB[("DuckDB OLAP Engine\n(cloudintel.duckdb)")]
+        LiveAWS["Live AWS Infrastructure\n(Cost Explorer, ECS, Lambda, S3, RDS)"]
+        RawFiles["Raw Billing Exports & JSON Logs\n(data/raw/)"]
+        GuardrailsEngine["Banking Guardrails Engine\n(KMS Mandate, Sidecars, Public Access)"]
+        CFNOutput["Compliant CloudFormation Templates\n(AWS Service Catalog Portfolios)"]
+    end
 
-    ChatInterface <--> QueryAgent
-    Dashboard <--> WasteAnalyzer
-    ComplianceBadge <--> GuardrailsEngine
-    RemediationUI <--> IaCGenerator
+    %% Connections
+    CLI <--> AgentSDK
+    IDE <--> AgentSDK
+    WebUI <--> AgentSDK
+    
+    AgentSDK <--> ClaudeClient
+    AgentSDK --> T1
+    AgentSDK --> T2
+    AgentSDK --> T3
+    AgentSDK --> T4
+    AgentSDK --> T5
+    AgentSDK --> T6
+    
+    T1 <--> RawFiles
+    T1 <--> DuckDB
+    T6 <--> LiveAWS
+    T6 --> T1
+    T2 <--> DuckDB
+    T3 <--> DuckDB
+    T3 --> T4
+    T4 <--> GuardrailsEngine
+    T4 --> T5
+    T5 --> CFNOutput
 ```
 
 ---
@@ -90,222 +108,335 @@ flowchart TB
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as Business / Eng Stakeholder
-    participant UI as Streamlit App (app.py)
-    participant QA as Query Agent (query_agent.py)
-    participant WA as Waste Analyzer (analyzer.py)
-    participant GE as Guardrails Engine (guardrails.py)
+    actor Dev as Developer / FinOps Lead
+    participant CC as Claude Code CLI (.claude/)
+    participant SDK as Anthropic Agent SDK (finops_autonomous_agent.py)
+    participant Claude as Anthropic Claude API (Claude 3.5/3.7 Sonnet)
+    participant Tools as Plugin Tools (plugins/finops-cost-optimizer/)
     participant DB as DuckDB (cloudintel.duckdb)
-    participant LLM as Groq API / Claude API
-    participant IaC as IaC Generator (iac_generator.py)
+    participant GE as Banking Guardrails Engine (guardrails_engine.py)
+    participant IaC as CloudFormation Engine (iac_engine.py)
+    participant SC as AWS Service Catalog
 
     rect rgb(240, 248, 255)
-        note over User, DB: Data Ingestion (Weekly / Daily Pipeline)
-        UI->>DB: Check DB Initialization
-        DB-->>UI: Database Ready with ECS (EC2), Lambda, & S3 Tables
+        note over Dev, DB: Phase 1: Data Ingestion & DuckDB Population
+        Dev->>CC: Run `/finops-ingest` (or schedule automatic polling)
+        CC->>SDK: Trigger Data Ingestion Workflow
+        SDK->>Tools: Call `data_ingest_tool` (with live Boto3 or mock CUR)
+        Tools->>DB: Populate normalized tables (daily_cost, ecs_metrics, lambda_metrics, s3_metrics)
+        DB-->>Tools: Tables populated & indexed
+        Tools-->>SDK: Return ingestion summary
+        SDK-->>CC: Display ingestion status & record counts
     end
 
     rect rgb(255, 245, 238)
-        note over User, LLM: Flow 1: Natural Language Cost Inquiry
-        User->>UI: Ask Question ("Why did Marketing Lambda & S3 costs spike?")
-        UI->>QA: Pass Question Text
-        QA->>LLM: Prompt 1: Translate Question to ANSI SQL Query
-        LLM-->>QA: Return Generated SQL Query
-        QA->>DB: Execute SQL Query
-        DB-->>QA: Return Raw Result Set (Rows & Columns)
-        QA->>LLM: Prompt 2: Synthesize Raw Data into Business Context
-        LLM-->>QA: Return Human-Readable Contextual Explanation
-        QA-->>UI: Display Answer & SQL Query in Chat Interface
+        note over Dev, Claude: Phase 2: Natural Language Query & Text-to-SQL
+        Dev->>CC: Run `/finops-query "Which BU spent the most on Lambda last week and why?"`
+        CC->>SDK: Forward natural language query
+        SDK->>Claude: Messages API with DuckDB Schema & System Prompt (Prompt Cached)
+        Claude-->>SDK: Return Tool Call: `execute_duckdb_sql(query=...)`
+        SDK->>Tools: Execute `query_engine_tool` with SQL
+        Tools->>DB: Execute ANSI SQL Query
+        DB-->>Tools: Return tabular result set
+        Tools-->>SDK: Return query results
+        SDK->>Claude: Pass SQL results back for synthesis
+        Claude-->>SDK: Synthesize business context & cost driver explanation
+        SDK-->>CC: Return formatted response in terminal / IDE
     end
 
     rect rgb(245, 255, 250)
-        note over User, IaC: Flow 2: Proactive Waste Detection & Banking Guardrail Enforcement
-        UI->>WA: Trigger Multi-Service Waste Analysis Job
-        WA->>DB: Query ECS (EC2), Lambda, & S3 Metrics vs Cost
-        DB-->>WA: Return Candidate Inefficiencies
-        WA->>LLM: Prompt 3: Analyze Multi-Dimensional Waste Patterns
-        LLM-->>WA: Return Candidate Recommendations
-        WA->>GE: Evaluate Candidate Fixes against Banking Compliance Policies
-        GE-->>GE: Check S3 KMS Mandate, Logging Rules, & Sidecar Retention
-        alt Recommendation Violates Guardrails (e.g. Delete KMS Key)
-            GE-->>WA: Flag Violation (REJECTED_KMS_MANDATE)
-            WA-->>UI: Log Rejected Card in Compliance Audit View
-        else Recommendation Passes Guardrails
-            GE-->>WA: Approve Candidate Recommendation
-            WA-->>UI: Render Approved Card in Savings Dashboard
-            User->>UI: Click "Generate Fix" for Approved Recommendation
-            UI->>IaC: Request Remediation Code (Target + Preserved KMS Config)
-            IaC->>LLM: Prompt 4: Generate Compliant AWS CloudFormation Template
-            LLM-->>IaC: Return Formatted CloudFormation YAML (cloudformation_template.yaml)
-            IaC-->>UI: Display CloudFormation Template with AWS Service Catalog Deploy Options
+        note over Dev, SC: Phase 3: Proactive Waste Detection & Banking Guardrails
+        Dev->>CC: Run `/finops-analyze`
+        CC->>SDK: Trigger Multi-Dimensional Waste Analysis
+        SDK->>Tools: Call `waste_analyzer_tool`
+        Tools->>DB: Query over-provisioned ECS tasks, idle Lambdas, un-lifecycle S3 objects
+        DB-->>Tools: Return raw candidate inefficiencies
+        Tools->>Claude: Extended Thinking Prompt: Evaluate cross-BU waste patterns & ROI
+        Claude-->>Tools: Return candidate optimization recommendations
+        
+        loop For Each Candidate Recommendation
+            Tools->>GE: Intercept & validate candidate via `guardrails_tool`
+            GE-->>GE: Check S3 KMS Mandate, Container Sidecars, & Zero Public Access
+            alt Non-Compliant (e.g. Attempted KMS key deletion)
+                GE-->>Tools: REJECTED (Violation Code: REJECTED_KMS_MANDATE)
+                Tools-->>SDK: Log rejected candidate to compliance audit table
+            else Compliant (Preserves all banking security rules)
+                GE-->>Tools: APPROVED
+                Tools-->>SDK: Add to approved recommendations list
+            end
         end
+        
+        SDK-->>CC: Render interactive recommendations table with savings estimates & compliance badges
+    end
+
+    rect rgb(255, 250, 240)
+        note over Dev, SC: Phase 4: Automated CloudFormation Synthesis & Service Catalog Integration
+        Dev->>CC: Run `/finops-remediate --recommendation-id REC-S3-001`
+        CC->>SDK: Trigger Remediation Synthesis
+        SDK->>Tools: Call `iac_generator_tool`
+        Tools->>Claude: Generate compliant CloudFormation YAML preserving KMS & parameters
+        Claude-->>Tools: Return synthesized CloudFormation template
+        Tools->>IaC: Validate YAML syntax & Service Catalog parameter structure
+        IaC-->>SDK: Return validated CloudFormation template & Service Catalog manifest
+        SDK-->>CC: Display CloudFormation code with option to deploy to AWS Service Catalog
+        Dev->>SC: Deploy to AWS Service Catalog Non-Prod Portfolio
     end
 ```
 
 ---
 
-## 5. Detailed Component Specifications
+## 5. Repository Architecture & Component Breakdown
 
-### 5.1 Module 1: Data Pipeline (`ingest.py` & `aws_connector.py`)
-- **Purpose**: Ingests raw Cost & Usage Reports (CUR), CloudWatch ECS container metrics (EC2 launch type), AWS Lambda invocation/duration metrics, and S3 storage class/KMS statistics, standardizing formats into DuckDB.
-- **Multi-Account & Authentication Strategy**:
-  - **Phase 1 (POC Access Keys & JSON Discovery)**: Authenticates using AWS Access Keys (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`) provided in `.env`, `accounts.json`, or Streamlit UI inputs. Parses target Account IDs from `accounts.json` configuration file or UI dropdowns.
-  - **Phase 2 (Enterprise System Account Governance)**: Operates under a central System Account IAM Execution Role, assuming federated cross-account roles across all target enterprise AWS accounts auto-discovered via AWS Organizations.
-- **Inputs**:
-  - `accounts.json` — Account configuration mapping Account IDs, names, regions, and environment tags.
-  - `data/raw/aws_cur_export.csv` — Billing line items (Unblended Cost, Usage Amount, Resource ID, Tags).
-  - `data/raw/ecs_task_metrics.json` — ECS container task metrics (EC2 launch type, CPU/Memory reserved vs peak used).
-  - `data/raw/lambda_metrics.json` — Serverless execution metrics (Memory allocated, Max memory used, Execution duration, Invocations).
-  - `data/raw/s3_storage_metrics.json` — Object storage stats (Standard/Glacier storage bytes, KMS key ARN, Encryption flag, Object age).
-- **Operations**:
-  1. Parses raw CSV, JSON files, or live AWS `boto3` queries based on authenticated Account ID.
-  2. Normalizes resource metadata into standardized columns.
-  3. Computes daily resource metrics and links cost data with performance metrics using `resource_id`.
-  4. Writes aggregated tables into `data/processed/cloudintel.duckdb`.
-
-### 5.2 Module 2: Natural Language Query Agent (`query_agent.py`)
-- **Purpose**: Translates plain-English user questions into valid DuckDB SQL queries across ECS, Lambda, and S3 tables, converting query outputs into natural language explanations.
-- **Two-Stage Prompt Pipeline**:
-  - **Stage 1 (Text-to-SQL)**: Passes database schema context + user question to LLM. Returns clean SQL query.
-  - **Stage 2 (Context Synthesis)**: Takes SQL query results + original question. Prompts LLM to explain *why* costs changed, highlighting business units, spikes, and drivers.
-
-### 5.3 Module 3: Proactive Waste Analyzer (`analyzer.py`)
-- **Purpose**: Autonomously scans DuckDB tables across ECS (EC2), Lambda, and S3 to flag cost waste patterns without requiring user prompts.
-- **Target Waste Categories**:
-  - **ECS (EC2) Tasks**: Over-provisioned container task definitions (e.g. 8 vCPU / 16 GB allocated, peak usage < 10%).
-  - **AWS Lambda**: Over-provisioned memory allocation (e.g. 3072 MB configured, actual max memory 128 MB) and unused provisioned concurrency.
-  - **S3 Storage**: Old log files or inactive objects residing in S3 Standard storage suitable for Glacier/IA lifecycle policies.
-  - **Cross-BU Optimization Sharing**: Identifies architectural waste in BU 'B' matching resolved patterns from BU 'A'.
-
-### 5.4 Module 4: Banking Security & Compliance Guardrails Engine (`guardrails.py`)
-- **Purpose**: Acts as an enterprise policy interceptor that validates every candidate recommendation before it reaches the UI or CloudFormation generator.
-- **Banking Compliance Rules**:
-  1. **S3 KMS Key Encryption Mandate (`RULE_S3_KMS`)**:
-     - Explicitly blocks any recommendation that attempts to delete, detach, or downgrade AWS Managed KMS keys (`aws_kms_key` / SSE-KMS) to cut API costs.
-  2. **ECS Security Sidecar Retention (`RULE_ECS_SIDECARS`)**:
-     - Ensures container task definition resizing preserves mandatory security monitoring and telemetry sidecars in `AWS::ECS::TaskDefinition`.
-  3. **Lambda Telemetry & Minimum Memory (`RULE_LAMBDA_BOUNDS`)**:
-     - Enforces lower bounds on Lambda memory reductions to guarantee security wrapper execution and prevents disabling AWS X-Ray / CloudWatch telemetry.
-  4. **Zero Public Access & Service Catalog Governance (`RULE_NO_PUBLIC_ACCESS`)**:
-     - Mandates that S3 lifecycle changes explicitly retain `PublicAccessBlockConfiguration` with `BlockPublicAcls: true` and `BlockPublicPolicy: true`.
-
-### 5.5 Module 5: Infrastructure as Code Generator (`iac_generator.py`)
-- **Purpose**: Converts approved, guardrail-vetted recommendations into production-ready, compliant **AWS CloudFormation templates** compatible with **AWS Service Catalog** products.
-- **Output Artifacts**:
-  - `cloudformation_template.yaml` — Guardrail-checked AWS CloudFormation template (e.g., updated `AWS::ECS::TaskDefinition` container limits, `AWS::Lambda::Function` memory, `AWS::S3::Bucket` lifecycle rules preserving `BucketEncryption` with `ServerSideEncryptionRule` using KMS).
-  - `service_catalog_product.json` — AWS Service Catalog Product artifact configuration and parameter mappings.
-
-### 5.6 Module 6: User Interface (`app.py`)
-- **Framework**: Streamlit web application.
-- **Layout**:
-  - **Sidebar**: LLM status (Groq API connected), Database status (DuckDB loaded), **AWS Account Selector / Account ID Input**, **AWS Access Keys Credentials Status**, Business Unit filter, Banking Guardrails Mode toggle (Active/Audit).
-  - **Tab 1: Chat Assistant**: Interactive Natural Language Q&A with text-to-SQL visibility across ECS, Lambda, and S3.
-  - **Tab 2: Proactive Savings Dashboard**: Recommendation cards sorted by estimated monthly savings ($) displaying Banking Compliance Pass badges.
-  - **Tab 3: Compliance & Guardrail Audit Log**: Transparent view of rejected unsafe recommendations (e.g., "KMS Key Removal Blocked").
-
-  - **Tab 4: Remediation & CloudFormation Studio**: Interactive AWS CloudFormation YAML code viewer with copy/download options and AWS Service Catalog product links.
+```plaintext
+claude-code-plugins/
+├── .claude-plugin/                        # Plugin manifest & marketplace configuration
+│   ├── manifest.json                      # Plugin metadata, tool definitions, skills, hooks
+│   └── plugin-config.yaml                 # FinOps plugin lifecycle & runtime config
+│
+├── .claude/                               # Claude Code workspace settings & prompt definitions
+│   ├── settings.json                      # Workspace permissions, tool access rules, model presets
+│   ├── commands/                          # Custom slash commands for Claude Code CLI
+│   │   ├── finops-query.md                # /finops-query — Natural language Text-to-SQL FinOps Q&A
+│   │   ├── finops-analyze.md              # /finops-analyze — Multi-dimensional waste detection
+│   │   ├── finops-remediate.md            # /finops-remediate — CloudFormation template generation
+│   │   ├── finops-guardrails.md           # /finops-guardrails — Compliance audit & policy logs
+│   │   └── finops-ingest.md               # /finops-ingest — Live AWS / mock CUR data ingestion
+│   └── rules/                             # Behavioral rules and banking compliance constraints
+│       └── finops-compliance-rules.md     # Mandatory KMS, sidecar retention, zero public access
+│
+├── .devcontainer/                         # Containerized development environment
+│   ├── devcontainer.json                  # VS Code / Codespaces dev container specification
+│   ├── Dockerfile                         # Python 3.11+, AWS CLI v2, DuckDB, Claude Code CLI tools
+│   └── scripts/
+│       └── setup-permissions.sh           # Custom credential handlers & sandbox security policies
+│
+├── .gitlab/                               # GitLab CI/CD pipelines & automated integrations
+│   ├── ci/
+│   │   ├── lint-and-test.gitlab-ci.yml    # Pytest, Black, Flake8, MyPy type checks
+│   │   ├── guardrail-audit.gitlab-ci.yml  # Automated banking security compliance test suite
+│   │   └── iac-validate.gitlab-ci.yml     # cfn-lint and cfn-nag CloudFormation security validation
+│   └── integrations/
+│       └── drawio-export.sh               # Drawio plugin integrations for auto-generating architecture SVGs
+│
+├── agent-sdk-example/                     # Anthropic Agent SDK reference implementations & evaluations
+│   ├── finops_autonomous_agent.py        # Multi-turn autonomous FinOps agent using Anthropic Claude API
+│   ├── custom_tools.py                    # Anthropic Agent SDK tool wrappers (DuckDB, Boto3, Guardrails)
+│   ├── evaluation/                        # Evaluation benchmarks & scoring framework
+│   │   ├── eval_benchmarks.json           # 50+ golden benchmark queries & expected SQL/cost insights
+│   │   ├── evaluate_accuracy.py           # Text-to-SQL precision & hallucination evaluation runner
+│   │   └── benchmark_results.md           # Accuracy, latency, and guardrail compliance reports
+│   └── README.md                          # Guide for running & extending the Agent SDK examples
+│
+├── docs/                                  # Project & plugin documentation
+│   ├── PROBLEM_STATEMENT.md               # Vision, problem definition, and acceptance criteria
+│   ├── ARCHITECTURE.md                    # This document (System architecture specification)
+│   ├── DEVELOPER_GUIDE.md                 # Local setup and plugin development guide
+│   ├── PLUGIN_INSTALLATION_GUIDE.md       # Plugin installation & Claude Code configuration guide
+│   ├── BANKING_GUARDRAILS_SPEC.md         # Detailed banking security policies & rule IDs
+│   ├── SERVICE_CATALOG_INTEGRATION.md     # AWS Service Catalog portfolio deployment manual
+│   ├── USER_GUIDE.md                      # End-user operational guide
+│   ├── deployment-plan.md                 # Deployment & environment promotion plan
+│   └── Implementation-plan.md             # Phased engineering implementation plan
+│
+├── plugins/                               # Core plugin modules
+│   └── finops-cost-optimizer/             # FinOps Cost Optimizer Claude Code Plugin
+│       ├── __init__.py
+│       ├── manifest.json                  # Plugin-specific capability declarations
+│       ├── tools/                         # Modular tool implementations (invoked by Claude / Agent SDK)
+│       │   ├── __init__.py
+│       │   ├── data_ingest_tool.py        # Ingests CUR, ECS, Lambda, S3, RDS metrics into DuckDB
+│       │   ├── query_engine_tool.py       # Text-to-SQL translation & DuckDB query execution via Claude API
+│       │   ├── waste_analyzer_tool.py     # Multi-resource pattern recognition & waste scoring
+│       │   ├── guardrails_tool.py         # Banking compliance filter (KMS, sidecars, security)
+│       │   ├── iac_generator_tool.py      # Compliant AWS CloudFormation & Service Catalog generator
+│       │   └── aws_connector_tool.py      # Boto3 live AWS Cost Explorer & CloudWatch connector
+│       ├── core/                          # Underlying business logic engines
+│       │   ├── __init__.py
+│       │   ├── claude_client.py           # Native Anthropic Claude API wrapper with caching & retry logic
+│       │   ├── ingest_engine.py           # ETL normalization & DuckDB schema management
+│       │   ├── analyzer_engine.py         # 7 major waste category analytical algorithms
+│       │   ├── guardrails_engine.py       # Policy-driven compliance validation logic
+│       │   └── iac_engine.py              # CloudFormation YAML/JSON AST & template builder
+│       ├── skills/                        # Claude Code skill instructions
+│       │   └── finops-analysis/
+│       │       └── SKILL.md               # Cheatsheet & prompt instructions for FinOps workflows
+│       └── accounts.json                  # Enterprise AWS account registry & BU mappings
+│
+├── tests/                                 # Automated test suites
+│   ├── __init__.py
+│   ├── conftest.py                        # Pytest fixtures, mock DuckDB, and mock Claude API responses
+│   ├── unit/                              # Unit tests for core engines
+│   │   ├── test_claude_client.py          # Tests Anthropic API connectivity, caching, and message handling
+│   │   ├── test_ingest.py                 # Tests CSV/JSON ingestion, schema normalization
+│   │   ├── test_query_agent.py            # Tests Text-to-SQL generation and context explainer
+│   │   ├── test_analyzer.py               # Tests ECS, Lambda, S3, RDS waste detection logic
+│   │   ├── test_guardrails.py             # Tests KMS mandate, sidecar protection, public access blocks
+│   │   └── test_iac_generator.py          # Tests CloudFormation synthesis & syntax validity
+│   ├── integration/                       # Integration & tool-calling tests
+│   │   ├── test_claude_tools.py           # Tests Claude Code plugin tool bindings
+│   │   ├── test_agent_sdk_workflow.py     # Tests end-to-end multi-turn Agent SDK execution
+│   │   └── test_aws_connector.py          # Tests live/mock Boto3 multi-account polling
+│   └── security/                          # Security & compliance regression tests
+│       └── test_banking_compliance.py     # Rejection tests for unsafe AI cost-saving proposals
+│
+├── .env.example                           # Template for environment variables (ANTHROPIC_API_KEY, AWS configs)
+├── .gitignore                             # Git ignore rules (data files, duckdb, caches, secrets)
+├── requirements.txt                       # Python dependencies (anthropic, duckdb, boto3, pydantic, etc.)
+└── README.md                              # Root project overview, quickstart, and plugin showcase
+```
 
 ---
 
-## 6. Database Schema Specification (DuckDB)
+## 6. Detailed Module Specifications
 
-### 6.1 Table: `raw_cost_reports`
+### 6.1 `claude_client.py` (Anthropic Claude API Wrapper)
+- **Purpose**: Provides a resilient, type-safe interface to the Anthropic Messages API (`anthropic` SDK) with built-in **Prompt Caching** and exponential backoff retry handling.
+- **Key Features**:
+  - Automatically wraps system prompts, database schemas, and banking guardrail rules in `cache_control: {"type": "ephemeral"}` blocks.
+  - Dynamically routes complex multi-BU reasoning and mathematical calculations to `claude-3-7-sonnet-20250219` with Extended Thinking enabled, and high-throughput tagging to `claude-3-5-haiku-20241022`.
+  - Handles JSON Schema validation for all Claude tool calls.
+
+### 6.2 `plugins/finops-cost-optimizer/tools/`
+1. **`data_ingest_tool.py`**:
+   - Executes ETL pipeline from CSV/JSON billing data or live Boto3 polling into normalized DuckDB tables.
+2. **`query_engine_tool.py`**:
+   - Accepts plain-English questions, sends cached DuckDB schema to Claude, executes returned SQL, and synthesizes contextual explanations.
+3. **`waste_analyzer_tool.py`**:
+   - Executes multi-dimensional SQL scans over DuckDB and applies Claude reasoning across compute (ECS/EC2), serverless (Lambda), storage (S3), and database (RDS) resources.
+4. **`guardrails_tool.py`**:
+   - Evaluates optimization proposals against banking compliance rules (`RULE_S3_KMS`, `RULE_ECS_SIDECARS`, `RULE_LAMBDA_BOUNDS`, `RULE_NO_PUBLIC_ACCESS`).
+5. **`iac_generator_tool.py`**:
+   - Leverages Claude 3.5/3.7 Sonnet code generation to author valid, formatted AWS CloudFormation templates ready for AWS Service Catalog portfolio integration.
+6. **`aws_connector_tool.py`**:
+   - Interfaces with AWS Cost Explorer, CloudWatch, ECS, Lambda, and S3 APIs using federated IAM execution roles.
+
+### 6.3 `agent-sdk-example/` (Anthropic Agent SDK Framework)
+- **`finops_autonomous_agent.py`**:
+  - Implements an autonomous multi-turn FinOps agent using the Anthropic Agent SDK.
+  - Maintains an iterative scratchpad/thought chain: `Plan -> Select Tool -> Execute Tool -> Evaluate Result -> Verify Guardrails -> Final Response`.
+- **`evaluation/`**:
+  - Golden benchmark dataset (`eval_benchmarks.json`) containing 50+ enterprise FinOps scenarios with ground-truth SQL and cost savings.
+  - Automated evaluation script (`evaluate_accuracy.py`) measuring Text-to-SQL exact match, execution accuracy, guardrail interception rate, and latency.
+
+---
+
+## 7. Database Schema Specification (DuckDB)
+
+### 7.1 Table: `daily_cost_summary`
 | Column Name | Data Type | Description |
 | :--- | :--- | :--- |
-| `line_item_id` | `VARCHAR` | Primary key / Unique transaction ID |
+| `line_item_id` | `VARCHAR` | Primary key / Unique billing record ID |
+| `account_id` | `VARCHAR` | AWS Account ID (12-digit) |
 | `usage_start_date` | `TIMESTAMP` | Start timestamp of usage |
-| `resource_id` | `VARCHAR` | AWS Resource ARN or ID |
-| `resource_type` | `VARCHAR` | Service type (`ECS-EC2`, `AWS-Lambda`, `S3-Standard`, `S3-Glacier`, `AWS-KMS`) |
+| `resource_id` | `VARCHAR` | AWS Resource ARN or Resource ID |
+| `resource_type` | `VARCHAR` | Service type (`ECS-EC2`, `AWS-Lambda`, `S3`, `RDS`, `DynamoDB`, `VPC-NAT`) |
 | `business_unit` | `VARCHAR` | Business Unit Tag (`Marketing`, `Engineering`, `DataScience`) |
 | `daily_cost` | `DOUBLE` | Unblended cost in USD |
-| `usage_amount` | `DOUBLE` | Quantity of usage (e.g., vCPU-hours, GB-hours, Invocations) |
+| `usage_amount` | `DOUBLE` | Usage quantity (vCPU-hours, GB-hours, Invocations) |
 
-### 6.2 Table: `ecs_task_metrics`
+### 7.2 Table: `ecs_container_metrics`
 | Column Name | Data Type | Description |
 | :--- | :--- | :--- |
 | `task_arn` | `VARCHAR` | ECS Task ARN |
 | `cluster_name` | `VARCHAR` | ECS Cluster Name |
 | `service_name` | `VARCHAR` | ECS Service Name |
+| `account_id` | `VARCHAR` | AWS Account ID |
 | `business_unit` | `VARCHAR` | Associated Business Unit |
-| `cpu_reserved` | `INTEGER` | Reserved CPU units (e.g., 1024, 2048, 4096) |
-| `memory_reserved` | `INTEGER` | Reserved Memory in MiB (e.g., 2048, 8192) |
-| `cpu_utilization_max` | `DOUBLE` | Peak CPU utilization % recorded |
-| `memory_utilization_max` | `DOUBLE` | Peak Memory utilization % recorded |
+| `cpu_reserved` | `INTEGER` | Reserved CPU units (1024 = 1 vCPU) |
+| `memory_reserved` | `INTEGER` | Reserved Memory in MiB |
+| `cpu_utilization_p95` | `DOUBLE` | 95th percentile peak CPU utilization % |
+| `memory_utilization_p95` | `DOUBLE` | 95th percentile peak Memory utilization % |
 | `launch_type` | `VARCHAR` | Launch type (`EC2`) |
-| `has_security_sidecar` | `BOOLEAN` | Whether container task includes mandatory security sidecar |
+| `has_security_sidecar` | `BOOLEAN` | True if mandatory security sidecar is attached |
 
-### 6.3 Table: `lambda_metrics`
+### 7.3 Table: `lambda_function_metrics`
 | Column Name | Data Type | Description |
 | :--- | :--- | :--- |
 | `function_arn` | `VARCHAR` | Lambda Function ARN |
 | `function_name` | `VARCHAR` | Lambda Function Name |
+| `account_id` | `VARCHAR` | AWS Account ID |
 | `business_unit` | `VARCHAR` | Associated Business Unit |
 | `memory_allocated_mb` | `INTEGER` | Configured memory size in MB |
 | `memory_max_used_mb` | `INTEGER` | Peak recorded memory usage in MB |
-| `avg_duration_ms` | `DOUBLE` | Average execution duration in milliseconds |
-| `invocations_count` | `INTEGER` | Number of function invocations in window |
-| `timeout_seconds` | `INTEGER` | Configured execution timeout |
+| `avg_duration_ms` | `DOUBLE` | Average execution duration in ms |
+| `invocations_count` | `INTEGER` | Total invocations in measurement period |
+| `provisioned_concurrency` | `INTEGER` | Configured provisioned concurrency |
+| `timeout_seconds` | `INTEGER` | Configured execution timeout in seconds |
 
-### 6.4 Table: `s3_storage_metrics`
+### 7.4 Table: `s3_bucket_metrics`
 | Column Name | Data Type | Description |
 | :--- | :--- | :--- |
 | `bucket_name` | `VARCHAR` | S3 Bucket Name |
+| `account_id` | `VARCHAR` | AWS Account ID |
 | `business_unit` | `VARCHAR` | Associated Business Unit |
-| `kms_key_arn` | `VARCHAR` | AWS Managed KMS Key ARN for bucket encryption |
+| `kms_key_arn` | `VARCHAR` | AWS Managed / Customer KMS Key ARN |
 | `is_kms_encrypted` | `BOOLEAN` | True if SSE-KMS encryption is active |
 | `storage_bytes_standard` | `BIGINT` | Bytes stored in S3 Standard class |
 | `storage_bytes_glacier` | `BIGINT` | Bytes stored in S3 Glacier/IA class |
-| `object_count` | `BIGINT` | Total object count |
-| `has_lifecycle_policy` | `BOOLEAN` | True if S3 lifecycle transition rule exists |
+| `object_count` | `BIGINT` | Total object count in bucket |
+| `has_lifecycle_policy` | `BOOLEAN` | True if lifecycle transition rules exist |
+| `public_access_blocked` | `BOOLEAN` | True if all 4 public access block settings are active |
 
-### 6.5 Table: `candidate_recommendations`
+### 7.5 Table: `candidate_recommendations`
 | Column Name | Data Type | Description |
 | :--- | :--- | :--- |
 | `recommendation_id` | `VARCHAR` | Unique ID for waste recommendation |
+| `account_id` | `VARCHAR` | AWS Account ID |
 | `resource_id` | `VARCHAR` | Target AWS Resource ARN |
-| `service_type` | `VARCHAR` | `ECS-EC2`, `AWS-Lambda`, `S3` |
-| `estimated_monthly_savings` | `DOUBLE` | Estimated cost reduction ($) |
+| `service_type` | `VARCHAR` | Service category (`ECS-EC2`, `Lambda`, `S3`, `RDS`) |
+| `estimated_monthly_savings` | `DOUBLE` | Estimated cost reduction ($ USD / month) |
 | `proposed_fix_description` | `VARCHAR` | Summary of proposed optimization |
 | `compliance_status` | `VARCHAR` | `APPROVED` or `REJECTED_KMS_MANDATE` / `REJECTED_SECURITY_POLICY` |
 | `guardrail_rule_triggered` | `VARCHAR` | Specific policy rule ID evaluated |
 
 ---
 
-## 7. Repository Directory Structure
+## 8. Enterprise Banking Compliance & Security Specification
 
-```plaintext
-cloudintel/
-├── data/
-│   ├── raw/                      # Raw billing CSVs, ECS (EC2) logs, Lambda & S3 stats
-│   │   ├── aws_cur_export.csv
-│   │   ├── ecs_task_metrics.json
-│   │   ├── lambda_metrics.json
-│   │   └── s3_storage_metrics.json
-│   └── processed/                # Cleaned analytical database
-│       └── cloudintel.duckdb
-├── docs/                         # Documentation artifacts
-│   ├── PROBLEM_STATEMENT.md      # Problem statement & milestone scope
-│   └── ARCHITECTURE.md           # System architecture specification
-├── ingest.py                     # Week 1: Multi-service ETL & DuckDB ingestion engine
-├── query_agent.py                # Week 2: Text-to-SQL & synthesis agent
-├── analyzer.py                   # Week 3: Proactive multi-service waste analyzer
-├── guardrails.py                 # Week 3: Banking Security & Compliance Policy Engine
-├── iac_generator.py              # Week 4: Compliant CloudFormation & Service Catalog remediation generator
-├── app.py                        # Week 4: Streamlit web UI application
-├── requirements.txt              # Dependencies (duckdb, groq, streamlit, pandas)
-└── README.md                     # Project overview & quickstart guide
+```mermaid
+flowchart TD
+    Candidate[AI Candidate Recommendation] --> Interceptor[Banking Guardrails Engine]
+    
+    Interceptor --> R1{Rule 1: S3 KMS Key Check\nDoes recommendation disable/downgrade KMS?}
+    R1 -- Yes --> V1[Reject: REJECTED_KMS_MANDATE\nLog Policy Violation]
+    R1 -- No --> R2{Rule 2: ECS Sidecar Check\nDoes recommendation remove security sidecars?}
+    
+    R2 -- Yes --> V2[Reject: REJECTED_ECS_SIDECAR\nLog Policy Violation]
+    R2 -- No --> R3{Rule 3: Lambda Telemetry Check\nDoes memory cut violate minimum buffer or X-Ray?}
+    
+    R3 -- Yes --> V3[Reject: REJECTED_LAMBDA_BOUNDS\nLog Policy Violation]
+    R3 -- No --> R4{Rule 4: Zero Public Access Check\nDoes S3 remediation enforce BlockPublicPolicy?}
+    
+    R4 -- No --> V4[Reject: REJECTED_PUBLIC_ACCESS\nLog Policy Violation]
+    R4 -- Yes --> Approved[Approve Recommendation\nEmit Compliance Pass Badge\nEnable CloudFormation Synthesis]
 ```
+
+### Policy Rules Specification:
+1. **`RULE_S3_KMS`**:
+   - **Mandate**: S3 lifecycle and storage tiering optimizations must retain `BucketEncryption` with `ServerSideEncryptionRule` using AWS KMS (`aws_kms_key`).
+   - **Violation Action**: Intercept and reject with violation code `REJECTED_KMS_MANDATE`.
+2. **`RULE_ECS_SIDECARS`**:
+   - **Mandate**: Container task resizing must preserve all security monitoring, audit logging, and intrusion detection container definitions in `AWS::ECS::TaskDefinition`.
+   - **Violation Action**: Intercept and reject with violation code `REJECTED_ECS_SIDECAR`.
+3. **`RULE_LAMBDA_BOUNDS`**:
+   - **Mandate**: Memory optimization must maintain minimum memory thresholds required for enterprise tracing layers (AWS X-Ray / banking telemetry) and prevent execution timeouts.
+   - **Violation Action**: Intercept and reject with violation code `REJECTED_LAMBDA_BOUNDS`.
+4. **`RULE_NO_PUBLIC_ACCESS`**:
+   - **Mandate**: S3 bucket modifications must explicitly enforce `PublicAccessBlockConfiguration` with `BlockPublicAcls: true`, `IgnorePublicAcls: true`, `BlockPublicPolicy: true`, and `RestrictPublicBuckets: true`.
+   - **Violation Action**: Intercept and reject with violation code `REJECTED_PUBLIC_ACCESS`.
 
 ---
 
-## 8. Security, Environment, and Deployment Guidelines
+## 9. Security, Secrets Management, and Data Privacy
 
-1. **API Keys & Secrets Management**:
-   - Store API keys strictly in `.env` or environment variables (`GROQ_API_KEY` for Phase 1 POC; `ANTHROPIC_API_KEY` for Phase 2).
-   - `.env` must be listed in `.gitignore` to prevent credential exposure.
-2. **Data Privacy & Anonymization**:
-   - All sample cloud billing data and metric logs in `data/raw/` must use mock account IDs and anonymized resource ARNs.
-3. **Execution Commands**:
-   - Run ETL: `python ingest.py`
-   - Run Guardrail Waste Analyzer: `python analyzer.py`
-   - Launch Streamlit App: `streamlit run app.py`
+1. **Anthropic API Privacy & Zero-Retention**:
+   - Direct integration via official `anthropic` SDK adheres to enterprise data privacy agreements ensuring customer cloud financial telemetry is never used for foundation model training.
+2. **Secrets & Credentials Management**:
+   - `ANTHROPIC_API_KEY`, `AWS_ACCESS_KEY_ID`, and session tokens are strictly loaded from environment variables (`.env`) or AWS Secrets Manager.
+   - `.env` is permanently excluded via `.gitignore`.
+3. **Data Masking & Account Isolation**:
+   - In multi-tenant enterprise environments, account IDs and resource ARNs are validated against `accounts.json` registry to enforce role-based access control.
+
+---
+
+*CloudIntel System Architecture Specification — Standardized on Claude Code Plugin & Anthropic Agent SDK.*

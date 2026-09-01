@@ -1,184 +1,93 @@
-# Deployment Plan — CloudIntel: Enterprise AI FinOps Platform
-
-## Executive Summary & Vision
-
-This document details the deployment operational plan for **CloudIntel**, an enterprise-grade AI FinOps intelligence platform. It outlines the step-by-step procedure for deploying, configuring, hosting, operating, and promoting CloudIntel across environments—from **Phase 1 (Proof of Concept Local/Sandbox Deployment)** to **Phase 1.5 (Non-Prod AWS Account Integration)** and **Phase 2 (Enterprise Banking Cloud Production)**.
-
-This plan integrates requirements from [`docs/PROBLEM_STATEMENT.md`](file:///j:/AI_Learnings/ai-aws-cost/Automation/docs/PROBLEM_STATEMENT.md), [`docs/ARCHITECTURE.md`](file:///j:/AI_Learnings/ai-aws-cost/Automation/docs/ARCHITECTURE.md), and [`docs/Implementation-plan.md`](file:///j:/AI_Learnings/ai-aws-cost/Automation/docs/Implementation-plan.md).
+# Deployment Plan — CloudIntel: Enterprise AI FinOps Platform & Claude Code Plugin
 
 ---
 
-## Deployment Strategy & Multi-Phase Model
+## 1. Executive Summary & Vision
 
-CloudIntel deployment is structured in three sequential phases to guarantee zero initial cloud infrastructure cost, zero risk to live workloads, and complete validation before enterprise rollout:
+This document details the operational deployment plan for **CloudIntel**, an enterprise-grade AI FinOps intelligence platform natively powered by the **Anthropic Claude API** and architected as a **Claude Code Plugin & Anthropic Agent SDK ecosystem (`claude-code-plugins`)**.
 
-```
-[ Phase 1: POC Local / Sandbox ]
-  ├── Embedded DuckDB OLAP
-  ├── Groq LPU API (llama-3.3-70b-versatile)
-  ├── Local Streamlit Portal (Port 8501)
-  └── Local Synthetic File Ingestion (data/raw -> data/processed)
-           │
-           ▼ (Validation & Non-Prod Account Credentials)
-[ Phase 1.5: Non-Prod AWS Account Integration ]
-  ├── Live AWS Cost Explorer, ECS, Lambda, & S3 API Connection (aws_connector.py)
-  ├── Non-Prod IAM Execution Role (CloudIntel-NonProd-ExecutionRole)
-  ├── Containerized Hosting on AWS App Runner / ECS Fargate (aws_nonprod_deploy.yaml)
-  └── AWS Service Catalog Non-Prod Portfolio Integration
-           │
-           ▼ (Security Audit & Stakeholder Approval)
-[ Phase 2: Enterprise Cloud Production ]
-  ├── AWS Athena / Redshift + AWS S3 Data Lake
-  ├── Anthropic Claude 3.5 Sonnet (Enterprise License)
-  ├── AWS App Runner / ECS Fargate + ALB + Banking SSO (OIDC/SAML)
-  └── AWS Service Catalog Portfolio Pipeline Integration
+It outlines the step-by-step procedures for deploying, configuring, hosting, operating, and promoting CloudIntel across environments:
+- **Phase 1: Local / Sandbox DevContainer Deployment** (Claude Code CLI, DuckDB OLAP, Anthropic Messages API, synthetic/local data).
+- **Phase 1.5: Non-Prod AWS Account & Service Catalog Integration** (Live Boto3 multi-account polling, non-prod IAM execution role, containerized hosting on AWS App Runner/ECS Fargate, and Non-Prod AWS Service Catalog portfolio).
+- **Phase 2: Enterprise Cloud Production** (Central System Account IAM federation across enterprise AWS accounts, automated GitLab CI/CD deployment, AWS Athena/Redshift integration, and enterprise Service Catalog portfolio publishing).
+
+---
+
+## 2. Multi-Phase Deployment Strategy
+
+```mermaid
+flowchart TD
+    subgraph Phase1 ["Phase 1: Local / Sandbox & DevContainer"]
+        D1["VS Code DevContainer (.devcontainer)"]
+        D2["Claude Code CLI & IDE Plugins"]
+        D3["Embedded DuckDB Engine (cloudintel.duckdb)"]
+        D4["Anthropic Claude API (Claude 3.5/3.7 Sonnet)"]
+        D5["Local Synthetic / Anonymized CUR Ingestion"]
+        D1 --> D2 --> D3 --> D4 --> D5
+    end
+
+    subgraph Phase15 ["Phase 1.5: Non-Prod AWS Account Integration"]
+        N1["Live AWS Cost Explorer, ECS, Lambda, & S3 APIs (aws_connector_tool.py)"]
+        N2["Non-Prod IAM Execution Role (CloudIntel-NonProd-Role)"]
+        N3["Containerized Hosting on AWS App Runner / ECS Fargate"]
+        N4["Non-Prod AWS Service Catalog Portfolio Registration"]
+        N1 --> N2 --> N3 --> N4
+    end
+
+    subgraph Phase2 ["Phase 2: Enterprise Banking Cloud Production"]
+        P1["Central System Account IAM Federation across AWS Organizations"]
+        P2["AWS Athena / Redshift Serverless Data Lake"]
+        P3["GitLab CI/CD Automated Deployment & Security Auditing (.gitlab/)"]
+        P4["Enterprise AWS Service Catalog Portfolio Publishing"]
+        P1 --> P2 --> P3 --> P4
+    end
+
+    Phase1 -->|Validation & Credentials| Phase15
+    Phase15 -->|Security Audit & Governance Approval| Phase2
 ```
 
 ---
 
-## Non-Prod AWS Account Integration Guide (Phase 1.5)
+## 3. Phase 1: Local DevContainer & Claude Code Plugin Setup
 
-### Step 1: Configure Non-Prod AWS Credentials / IAM Role
+### Step 1: Open in VS Code DevContainer
+The repository includes a ready-to-use development container specification (`.devcontainer/`):
+1. Open the project folder in **Visual Studio Code**.
+2. When prompted, click **"Reopen in Container"** (or run Command Palette: `Dev Containers: Reopen in Container`).
+3. The container automatically provisions:
+   - Python 3.11+
+   - AWS CLI v2
+   - DuckDB CLI & Python library
+   - Claude Code CLI (`@anthropic-ai/claude-code`)
+   - Sandbox permission handlers (`.devcontainer/scripts/setup-permissions.sh`)
 
-Authenticate your local terminal or container environment to your Non-Prod AWS Account using AWS CLI, SSO, or environment variables:
-
+### Step 2: Configure Environment Variables
+Copy `.env.example` to `.env` and set your credentials:
 ```bash
-# Option A: AWS SSO Login (Recommended)
-aws sso login --profile nonprod-account
-
-# Option B: Standard AWS CLI Credentials
-export AWS_ACCESS_KEY_ID="ASIA..."
-export AWS_SECRET_ACCESS_KEY="..."
-export AWS_SESSION_TOKEN="..."
-export AWS_DEFAULT_REGION="us-east-1"
+cp .env.example .env
 ```
 
-Verify connection to your non-prod account:
+Edit `.env`:
 ```bash
-aws sts get-caller-identity
-```
-
-### Step 2: Test Live Non-Prod Data Connection (`aws_connector.py`)
-
-Run the data ingestion pipeline with live AWS non-prod integration:
-```bash
-python ingest.py --use-aws
-```
-*Output Verification*:
-- Connects to AWS Cost Explorer (`ce:GetCostAndUsage`) to pull real unblended costs.
-- Connects to AWS ECS (`ecs:ListTasks`), AWS Lambda (`lambda:ListFunctions`), and AWS S3 (`s3:ListBuckets`) to fetch live metrics.
-- Populates `cloudintel.duckdb` with live non-prod infrastructure data.
-
-### Step 3: Deploy Non-Prod CloudIntel Stack via CloudFormation (`aws_nonprod_deploy.yaml`)
-
-Deploy the CloudFormation stack in your Non-Prod AWS Account:
-
-```bash
-aws cloudformation deploy \
-  --template-file aws_nonprod_deploy.yaml \
-  --stack-name CloudIntel-NonProd-Stack \
-  --parameter-overrides Environment=nonprod GroqApiKey=$GROQ_API_KEY \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --region us-east-1
-```
-
-### Step 4: Build & Push Docker Container to AWS ECR
-
-```bash
-# 1. Retrieve ECR Repository URI from CloudFormation Stack Outputs
-export ECR_URI=$(aws cloudformation describe-stacks \
-  --stack-name CloudIntel-NonProd-Stack \
-  --query "Stacks[0].Outputs[?OutputKey=='ECRRepositoryUri'].OutputValue" \
-  --output text)
-
-# 2. Authenticate Docker to AWS ECR
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_URI
-
-# 3. Build Docker Image
-docker build -t cloudintel-nonprod-app .
-
-# 4. Tag & Push Image to ECR
-docker tag cloudintel-nonprod-app:latest $ECR_URI:latest
-docker push $ECR_URI:latest
-```
-
-### Step 5: Verify App Runner URL & Service Catalog Portfolio
-
-1. Retrieve the App Runner URL:
-   ```bash
-   aws cloudformation describe-stacks \
-     --stack-name CloudIntel-NonProd-Stack \
-     --query "Stacks[0].Outputs[?OutputKey=='AppRunnerServiceUrl'].OutputValue" \
-     --output text
-   ```
-2. Open the URL in your browser to access the live non-prod CloudIntel portal.
-3. Remediation templates generated in Tab 4 can be registered directly into the non-prod **AWS Service Catalog Portfolio** (`CloudIntel-NonProd-FinOps-Remediations`).
-
----
-
-## Environment Matrix & Prerequisites
-
-## Environment Matrix & Prerequisites
-
-### 1. Phase 1 & 1.5 (POC & Non-Prod Environment)
-
-| Requirement | Specification |
-| :--- | :--- |
-| **Operating System** | Linux / macOS / Windows 10+ (PowerShell or Bash) |
-| **Runtime Environment** | Python 3.10+ |
-| **AWS SDK & Credentials** | `boto3>=1.28.0` with `AWS_ACCESS_KEY_ID` & `AWS_SECRET_ACCESS_KEY` |
-| **Account Discovery** | Loaded from `accounts.json` or entered via Streamlit UI |
-| **IAM Permissions** | Read-Only: `ce:*`, `cloudwatch:*`, `ecs:*`, `lambda:*`, `s3:*`, `servicecatalog:*` |
-| **System Memory** | Minimum 4 GB RAM (8 GB recommended) |
-| **Storage** | 1 GB free disk space |
-| **External Connectivity** | HTTPS outbound access to `api.groq.com` (Port 443) |
-
-### 2. Phase 2 (Enterprise Banking Cloud Target)
-
-| Component | Target AWS Service / Architecture |
-| :--- | :--- |
-| **Application Hosting** | **AWS App Runner** or **Amazon ECS Fargate** (Private Subnets) |
-| **AWS Authentication** | **Central System Account Access** (Central IAM Execution Role federating target accounts) |
-| **Account Discovery** | **AWS Organizations / System Account Registry** (Auto-discovers registered accounts) |
-| **Load Balancing & Auth** | **AWS ALB** + AWS IAM / Banking SSO (OIDC / SAML 2.0) |
-| **Analytical Query Engine**| **AWS Athena** / **Amazon Redshift Serverless** |
-| **Data Lake Storage** | **AWS S3 Bucket** + **AWS Glue Data Catalog** |
-| **Secrets & Keys** | **AWS Secrets Manager** + **AWS KMS (Customer Managed Keys)** |
-| **IaC Delivery Target** | **AWS Service Catalog** Product Portfolios via AWS CodePipeline |
-
----
-
-## Configuration & Environment Variables
-
-Create a `.env` file in the project root directory (ensure `.env` is listed in `.gitignore`):
-
-```bash
-# Core Application Environment
-APP_ENV=nonprod
+# Core Environment
+APP_ENV=local
 LOG_LEVEL=INFO
 
-# AWS Access Key Credentials & Region (Phase 1 POC)
+# Anthropic Claude API Configuration
+ANTHROPIC_API_KEY=sk-ant-api03-...
+CLAUDE_PRIMARY_MODEL=claude-3-7-sonnet-20250219
+CLAUDE_FAST_MODEL=claude-3-5-haiku-20241022
+
+# AWS Credentials (for local / sandbox testing)
 AWS_ACCESS_KEY_ID=AKIA...
-AWS_SECRET_ACCESS_KEY=your_secret_access_key_here
-AWS_SESSION_TOKEN=optional_session_token_here
+AWS_SECRET_ACCESS_KEY=...
 AWS_DEFAULT_REGION=us-east-1
 
-# Target Account Configuration File
-ACCOUNTS_CONFIG_PATH=accounts.json
-
-# Phase 1/1.5 LLM Provider Configuration
-GROQ_API_KEY=gsk_your_groq_api_key_here
-LLM_MODEL_NAME=llama-3.3-70b-versatile
-
-# Phase 2 LLM Provider Configuration (Target)
-# ANTHROPIC_API_KEY=sk-ant-your-key-here
-# LLM_MODEL_NAME=claude-3-5-sonnet-20241022
-
-# Database & Storage Settings
+# Database & Storage
 DUCKDB_PATH=data/processed/cloudintel.duckdb
 DATA_RAW_DIR=data/raw
 
-# Banking Compliance Guardrails Toggle (ENFORCE | AUDIT)
+# Banking Compliance Guardrails (ENFORCE | AUDIT)
 GUARDRAILS_MODE=ENFORCE
 ENFORCE_KMS_MANDATE=true
 ENFORCE_ECS_SIDECARS=true
@@ -186,24 +95,144 @@ ENFORCE_LAMBDA_MEMORY_BOUNDS=true
 ENFORCE_ZERO_PUBLIC_ACCESS=true
 ```
 
+### Step 3: Run Data Ingestion & Plugin Verification
+```bash
+# Ingest raw CUR and multi-service telemetry into DuckDB
+python plugins/finops-cost-optimizer/tools/data_ingest_tool.py
+
+# Verify Claude Code CLI custom slash commands
+claude /finops-query "Show me top 5 most expensive resources across BUs"
+```
 
 ---
 
-## Health Check, Verification & Rollback Procedures
+## 4. Phase 1.5: Non-Prod AWS Account Integration
 
-### 1. Verification Commands & Diagnostics
+### Step 1: Configure Non-Prod AWS Credentials / IAM Role
+Authenticate your terminal or container environment to the target Non-Prod AWS Account:
 
-| Verification Step | Execution Command | Success Criteria |
+```bash
+# Option A: AWS SSO Login (Recommended)
+aws sso login --profile nonprod-engineering
+
+# Option B: IAM User Credentials / Session Token
+export AWS_ACCESS_KEY_ID="ASIA..."
+export AWS_SECRET_ACCESS_KEY="..."
+export AWS_SESSION_TOKEN="..."
+export AWS_DEFAULT_REGION="us-east-1"
+```
+
+Verify connection:
+```bash
+aws sts get-caller-identity
+```
+
+### Step 2: Test Live Non-Prod AWS Polling (`aws_connector_tool.py`)
+```bash
+python plugins/finops-cost-optimizer/tools/aws_connector_tool.py --account-id 040707863982
+```
+*Output Verification*:
+- Queries AWS Cost Explorer (`ce:GetCostAndUsage`) for live unblended daily spend.
+- Polls AWS CloudWatch & ECS APIs for container vCPU/RAM reservation vs. actual usage.
+- Polls AWS Lambda APIs for memory allocations, duration, and concurrency.
+- Polls AWS S3 APIs for bucket storage distribution and SSE-KMS encryption status.
+
+### Step 3: Deploy Non-Prod CloudIntel Infrastructure via CloudFormation
+Deploy the hosting stack (`aws_nonprod_deploy.yaml`) to run the Streamlit portal and Agent services in Non-Prod:
+
+```bash
+aws cloudformation deploy \
+  --template-file aws_nonprod_deploy.yaml \
+  --stack-name CloudIntel-NonProd-Stack \
+  --parameter-overrides Environment=nonprod AnthropicApiKey=$ANTHROPIC_API_KEY \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --region us-east-1
+```
+
+### Step 4: Register Remediation Products in AWS Service Catalog
+Remediation CloudFormation templates generated by `/finops-remediate` can be directly registered into the Non-Prod **AWS Service Catalog Portfolio**:
+```bash
+aws servicecatalog create-product \
+  --product-name "FinOps-ECS-Task-Resize-Prod" \
+  --owner "FinOps-Platform-Team" \
+  --product-type CLOUD_FORMATION_TEMPLATE \
+  --provisioning-artifact-parameters file://service_catalog_product.json
+```
+
+---
+
+## 5. Phase 2: Enterprise Cloud Production Deployment
+
+### 5.1 Architecture & Federation Model
+- **Central System Account Model**: CloudIntel executes under a centralized System Account IAM Role that assumes federated cross-account roles (`CloudIntel-CrossAccount-Role`) across all enterprise AWS accounts discovered via AWS Organizations.
+- **Data Lake Query Engine**: Ingests multi-account Cost & Usage Reports (CUR 2.0 Parquet) stored in S3 directly into **AWS Athena / Redshift Serverless**.
+- **Container Hosting**: Deployed on **Amazon ECS Fargate** across private subnets behind an Application Load Balancer (ALB) integrated with Enterprise SAML 2.0 / OIDC SSO.
+
+### 5.2 GitLab CI/CD Automation Pipeline (`.gitlab/`)
+The repository includes automated CI/CD pipeline definitions (`.gitlab/ci/`):
+
+```yaml
+# .gitlab-ci.yml Pipeline Stages
+stages:
+  - lint-and-test
+  - guardrail-audit
+  - iac-validate
+  - deploy-nonprod
+  - deploy-prod
+
+lint-and-test:
+  stage: lint-and-test
+  script:
+    - pytest tests/unit/
+    - flake8 plugins/ tests/
+
+guardrail-audit:
+  stage: guardrail-audit
+  script:
+    - pytest tests/security/test_banking_compliance.py
+
+iac-validate:
+  stage: iac-validate
+  script:
+    - cfn-lint aws_nonprod_deploy.yaml
+```
+
+---
+
+## 6. Environment Matrix & Requirements
+
+| Requirement | Phase 1: Local / DevContainer | Phase 1.5: Non-Prod AWS Account | Phase 2: Enterprise Banking Production |
+| :--- | :--- | :--- | :--- |
+| **OS / Runtime** | Linux / macOS / Windows with DevContainer (Python 3.11+) | Amazon Linux 2 / ECS Fargate (Python 3.11+) | Hardened Enterprise Linux / ECS Fargate |
+| **AI Model API** | Anthropic Claude API (`claude-3-7-sonnet-20250219`, `claude-3-5-sonnet-20241022`) | Anthropic Claude API with Prompt Caching | Anthropic Claude API (Enterprise Dedicated Endpoint) |
+| **AWS Authentication** | Local AWS CLI / Access Keys via `.env` | Non-Prod IAM Role (`CloudIntel-NonProd-Role`) | Central System Account IAM Cross-Account Federation |
+| **Account Discovery** | `accounts.json` registry file | `accounts.json` / Non-Prod Account List | AWS Organizations Auto-Discovery API |
+| **Database** | Embedded DuckDB (`cloudintel.duckdb`) | Embedded DuckDB / S3 `httpfs` | AWS Athena / Amazon Redshift Serverless |
+| **IaC Target** | Local YAML & `service_catalog_product.json` | Non-Prod AWS Service Catalog Portfolio | Enterprise AWS Service Catalog Portfolios & CI/CD |
+| **Outbound Egress** | HTTPS Port 443 to `api.anthropic.com` | HTTPS Port 443 via NAT Gateway | HTTPS Port 443 via Enterprise Proxy / PrivateLink |
+
+---
+
+## 7. Health Check, Verification & Disaster Recovery
+
+### 7.1 Automated Diagnostics & Health Checks
+
+| Health Check Target | Execution Command | Success Criteria |
 | :--- | :--- | :--- |
-| **AWS Connection Check** | `python aws_connector.py` | Returns `AWS Non-Prod Connection Status: CONNECTED` |
-| **Ingestion Check** | `python ingest.py --use-aws` | Successfully pulls live AWS metrics into DuckDB |
-| **Guardrails Test** | `python guardrails.py` | Passes `RULE_S3_KMS`, `RULE_ECS_SIDECARS`, `RULE_LAMBDA_BOUNDS`, `RULE_NO_PUBLIC_ACCESS` |
-| **Streamlit Health** | `curl -f http://localhost:8501/_stcore/health` | Returns HTTP `200 OK` |
+| **Claude API Connectivity** | `python tests/unit/test_claude_client.py` | Anthropic API returns `200 OK` with valid message stream |
+| **DuckDB Database Health** | `python -c "import duckdb; conn=duckdb.connect('data/processed/cloudintel.duckdb'); print(conn.execute('SHOW TABLES').fetchall())"` | Lists all 5 core tables with >0 rows |
+| **Guardrails Enforcement** | `pytest tests/security/test_banking_compliance.py` | 100% of unsafe candidate prompts intercepted with policy violation codes |
+| **Agent SDK Evaluation** | `python agent-sdk-example/evaluation/evaluate_accuracy.py` | Accuracy >95%, zero guardrail bypasses |
+| **Web Portal Health** | `curl -f http://localhost:8501/_stcore/health` | Returns HTTP `200 OK` |
 
-### 2. Rollback & Emergency Procedures
-1. **Local DuckDB Corruption**:
-   - Delete `data/processed/cloudintel.duckdb` and rerun `python ingest.py` to regenerate cleanly.
-2. **LLM Provider Outage / API Fallback**:
-   - Switch `.env` variable `LLM_MODEL_NAME` or switch fallback provider endpoint in `llm_client.py`.
+### 7.2 Disaster Recovery & Rollback Procedures
+1. **Corrupted Local DuckDB**:
+   - Delete `data/processed/cloudintel.duckdb` and execute `python plugins/finops-cost-optimizer/tools/data_ingest_tool.py` to rebuild from source raw data.
+2. **Claude API Latency / Rate Limits**:
+   - `claude_client.py` implements exponential backoff retry. For high-volume triage, the platform automatically falls back to `claude-3-5-haiku-20241022`.
 3. **Container Rollback**:
-   - Roll back AWS App Runner service / ECS Task Definition to previous immutable ECR image tag via AWS Management Console or AWS CLI.
+   - Revert AWS App Runner or ECS Task Definition to previous immutable ECR image tag via AWS Management Console or AWS CLI.
+
+---
+
+*CloudIntel Deployment Plan — Powered by Anthropic Claude API & Claude Code Plugins.*

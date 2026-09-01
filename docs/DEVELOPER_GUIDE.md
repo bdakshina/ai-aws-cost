@@ -1,213 +1,165 @@
-# CloudIntel — Developer & Contributor Guide
-
-Welcome to the **CloudIntel Developer Guide**. This document provides detailed technical specifications, architectural breakdowns, setup instructions, extension patterns, and testing guidelines for software engineers, DevOps/FinOps developers, and AI engineers working on the CloudIntel codebase.
+# CloudIntel — Developer & Contributor Guide (Claude Code Plugin Architecture)
 
 ---
 
-## 1. System Architecture & Codebase Overview
+## 1. Executive Summary & Architecture Overview
 
-CloudIntel is structured as a modular, loosely-coupled Python application:
+Welcome to the **CloudIntel Developer Guide**. This document provides detailed technical specifications, setup instructions, extension patterns, and testing guidelines for software engineers, DevOps/FinOps developers, and AI engineers working on the **CloudIntel Claude Code Plugin & Anthropic Agent SDK ecosystem (`claude-code-plugins`)**.
 
+### Repository Structure
 ```plaintext
-cloudintel/
-├── accounts.json                 # Target AWS Account configuration registry
-├── data/
-│   ├── raw/                      # Raw billing CSVs, ECS task metrics, Lambda & S3 stats
-│   │   ├── aws_cur_export.csv
-│   │   ├── ecs_task_metrics.json
-│   │   ├── lambda_metrics.json
-│   │   └── s3_storage_metrics.json
-│   └── processed/                # Cleaned analytical DuckDB database
-│       └── cloudintel.duckdb
-├── docs/                         # Specifications, architecture, & operational guides
-│   ├── PROBLEM_STATEMENT.md
-│   ├── ARCHITECTURE.md
-│   ├── Implementation-plan.md
-│   ├── deployment-plan.md
-│   ├── edge-case.md
-│   ├── DEVELOPER_GUIDE.md        # This document
-│   └── USER_GUIDE.md             # End-user operational guide
-├── tests/                        # Automated unit test suite
-│   ├── test_guardrails.py
-│   └── test_sql_safety.py
-├── aws_connector.py              # Live AWS Access Key & Cost Explorer Connector
-├── ingest.py                     # Week 1: Multi-service ETL & DuckDB ingestion engine
-├── query_agent.py                # Week 2: Text-to-SQL & context synthesis agent
-├── analyzer.py                   # Week 3: Proactive multi-service waste analyzer
-├── guardrails.py                 # Week 3: Banking Security & Compliance Policy Engine
-├── iac_generator.py              # Week 4: Compliant CloudFormation & Service Catalog generator
-├── app.py                        # Week 4: Streamlit interactive web application
-├── llm_client.py                 # Pluggable LLM provider client (Groq / Failover)
-├── aws_nonprod_deploy.yaml       # Non-prod AWS App Runner CloudFormation deployment template
-├── aws_spoke_account_role.yaml   # Multi-account spoke cross-account IAM role StackSet template
-├── requirements.txt              # Project dependencies
-└── README.md                     # Project quickstart guide
+claude-code-plugins/
+├── .claude-plugin/                        # Plugin manifest & marketplace configuration
+│   ├── manifest.json                      # Plugin metadata, tool definitions, skills, hooks
+│   └── plugin-config.yaml                 # FinOps plugin lifecycle & runtime config
+│
+├── .claude/                               # Claude Code workspace settings & prompt definitions
+│   ├── settings.json                      # Workspace permissions, tool access rules, model presets
+│   ├── commands/                          # Custom slash commands for Claude Code CLI
+│   │   ├── finops-query.md                # /finops-query — Natural language Text-to-SQL FinOps Q&A
+│   │   ├── finops-analyze.md              # /finops-analyze — Multi-dimensional waste detection
+│   │   ├── finops-remediate.md            # /finops-remediate — CloudFormation template generation
+│   │   ├── finops-guardrails.md           # /finops-guardrails — Compliance audit & policy logs
+│   │   └── finops-ingest.md               # /finops-ingest — Live AWS / mock CUR data ingestion
+│   └── rules/                             # Behavioral rules and banking compliance constraints
+│       └── finops-compliance-rules.md     # Mandatory KMS, sidecar retention, zero public access
+│
+├── .devcontainer/                         # Containerized development environment
+│   ├── devcontainer.json                  # VS Code / Codespaces dev container specification
+│   ├── Dockerfile                         # Python 3.11+, AWS CLI v2, DuckDB, Claude Code CLI tools
+│   └── scripts/
+│       └── setup-permissions.sh           # Custom credential handlers & sandbox security policies
+│
+├── .gitlab/                               # GitLab CI/CD pipelines & automated integrations
+│   ├── ci/
+│   │   ├── lint-and-test.gitlab-ci.yml    # Pytest, Black, Flake8, MyPy type checks
+│   │   ├── guardrail-audit.gitlab-ci.yml  # Automated banking security compliance test suite
+│   │   └── iac-validate.gitlab-ci.yml     # cfn-lint and cfn-nag CloudFormation security validation
+│   └── integrations/
+│       └── drawio-export.sh               # Drawio plugin integrations for auto-generating architecture SVGs
+│
+├── agent-sdk-example/                     # Anthropic Agent SDK reference implementations & evaluations
+│   ├── finops_autonomous_agent.py        # Multi-turn autonomous FinOps agent using Anthropic Claude API
+│   ├── custom_tools.py                    # Anthropic Agent SDK tool wrappers (DuckDB, Boto3, Guardrails)
+│   ├── evaluation/                        # Evaluation benchmarks & scoring framework
+│   │   ├── eval_benchmarks.json           # 50+ golden benchmark queries & expected SQL/cost insights
+│   │   ├── evaluate_accuracy.py           # Text-to-SQL precision & hallucination evaluation runner
+│   │   └── benchmark_results.md           # Accuracy, latency, and guardrail compliance reports
+│   └── README.md                          # Guide for running & extending the Agent SDK examples
+│
+├── docs/                                  # Project & plugin documentation
+│   ├── PROBLEM_STATEMENT.md               # Vision, problem definition, and acceptance criteria
+│   ├── ARCHITECTURE.md                    # Detailed system architecture specification
+│   ├── DEVELOPER_GUIDE.md                 # This document
+│   ├── PLUGIN_INSTALLATION_GUIDE.md       # Plugin installation & Claude Code configuration guide
+│   ├── BANKING_GUARDRAILS_SPEC.md         # Detailed banking security rules & policy specifications
+│   ├── SERVICE_CATALOG_INTEGRATION.md     # AWS Service Catalog portfolio & CloudFormation integration
+│   ├── USER_GUIDE.md                      # End-user operational guide (CLI & UI workflows)
+│   ├── deployment-plan.md                 # Deployment & environment promotion plan
+│   └── Implementation-plan.md             # Phased engineering implementation plan
+│
+├── plugins/                               # Core plugin modules
+│   └── finops-cost-optimizer/             # FinOps Cost Optimizer Claude Code Plugin
+│       ├── __init__.py
+│       ├── manifest.json                  # Plugin-specific capability declarations
+│       ├── tools/                         # Modular tool implementations (invoked by Claude / Agent SDK)
+│       │   ├── __init__.py
+│       │   ├── data_ingest_tool.py        # Ingests CUR, ECS, Lambda, S3, RDS metrics into DuckDB
+│       │   ├── query_engine_tool.py       # Text-to-SQL translation & DuckDB query execution via Claude API
+│       │   ├── waste_analyzer_tool.py     # Multi-resource pattern recognition & waste scoring
+│       │   ├── guardrails_tool.py         # Banking compliance filter (KMS, sidecars, security)
+│       │   ├── iac_generator_tool.py      # Compliant AWS CloudFormation & Service Catalog generator
+│       │   └── aws_connector_tool.py      # Boto3 live AWS Cost Explorer & CloudWatch connector
+│       ├── core/                          # Underlying business logic engines
+│       │   ├── __init__.py
+│       │   ├── claude_client.py           # Native Anthropic Claude API wrapper with caching & retry logic
+│       │   ├── ingest_engine.py           # ETL normalization & DuckDB schema management
+│       │   ├── analyzer_engine.py         # 7 major waste category analytical algorithms
+│       │   ├── guardrails_engine.py       # Policy-driven compliance validation logic
+│       │   └── iac_engine.py              # CloudFormation YAML/JSON AST & template builder
+│       ├── skills/                        # Claude Code skill instructions
+│       │   └── finops-analysis/
+│       │       └── SKILL.md               # Cheatsheet & prompt instructions for FinOps workflows
+│       └── accounts.json                  # Enterprise AWS account registry & BU mappings
+│
+├── tests/                                 # Automated test suites
+│   ├── __init__.py
+│   ├── conftest.py                        # Pytest fixtures, mock DuckDB, and mock Claude API responses
+│   ├── unit/                              # Unit tests for core engines
+│   │   ├── test_claude_client.py          # Tests Anthropic API connectivity, caching, and message handling
+│   │   ├── test_ingest.py                 # Tests CSV/JSON ingestion, schema normalization
+│   │   ├── test_query_agent.py            # Tests Text-to-SQL generation and context explainer
+│   │   ├── test_analyzer.py               # Tests ECS, Lambda, S3, RDS waste detection logic
+│   │   ├── test_guardrails.py             # Tests KMS mandate, sidecar protection, public access blocks
+│   │   └── test_iac_generator.py          # Tests CloudFormation synthesis & syntax validity
+│   ├── integration/                       # Integration & tool-calling tests
+│   │   ├── test_claude_tools.py           # Tests Claude Code plugin tool bindings
+│   │   ├── test_agent_sdk_workflow.py     # Tests end-to-end multi-turn Agent SDK execution
+│   │   └── test_aws_connector.py          # Tests live/mock Boto3 multi-account polling
+│   └── security/                          # Security & compliance regression tests
+│       └── test_banking_compliance.py     # Rejection tests for unsafe AI cost-saving proposals
+│
+├── .env.example                           # Template for environment variables (ANTHROPIC_API_KEY, AWS configs)
+├── .gitignore                             # Git ignore rules (data files, duckdb, caches, secrets)
+├── requirements.txt                       # Python dependencies (anthropic, duckdb, boto3, pydantic, etc.)
+└── README.md                              # Root project overview, quickstart, and plugin showcase
 ```
 
 ---
 
-## 2. Core Module Breakdown
+## 2. Developer Environment Setup
 
-### 2.1 Data Pipeline Engine (`ingest.py` & `aws_connector.py`)
-- **`aws_connector.py`**:
-  - Encapsulates `boto3` calls to query live AWS APIs (**AWS Cost Explorer**, **CloudWatch**, **ECS**, **Lambda**, **S3**).
-  - Authenticates via AWS Access Keys (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`) or IAM execution roles.
-  - Loads target Account IDs dynamically from `accounts.json`.
-- **`ingest.py`**:
-  - Initializes DuckDB columnar database at `data/processed/cloudintel.duckdb`.
-  - Parses raw CSV/JSON files or live AWS API responses.
-  - Normalizes schemas into 5 core tables:
-    - `raw_cost_reports`
-    - `ecs_task_metrics`
-    - `lambda_metrics`
-    - `s3_storage_metrics`
-    - `candidate_recommendations`
+### Option A: VS Code DevContainer (Recommended)
+1. Open the workspace root in Visual Studio Code.
+2. Select **"Reopen in Container"** when prompted.
+3. All dependencies, CLI tools (Claude Code CLI, AWS CLI, DuckDB), and pre-configured environment variables will be provisioned automatically.
 
-### 2.2 LLM Client & Failover Manager (`llm_client.py`)
-- Wraps Groq Cloud API (`Groq` SDK).
-- Implements **automatic model failover** across active Groq models (`llama-3.3-70b-versatile`, `llama3-70b-8192`, `llama-3.1-8b-instant`, `mixtral-8x7b-32768`, `gemma2-9b-it`).
-- Provides a **heuristic fallback engine** if API keys are absent or offline, enabling seamless local developer testing.
-
-### 2.3 Natural Language Query Agent (`query_agent.py`)
-- **Stage 1 (Text-to-SQL)**: Converts natural language questions into valid DuckDB ANSI SQL SELECT statements.
-- **AST SQL Safety Validator (`validate_sql_safety`)**: Evaluates generated SQL queries to block non-SELECT statements (`DROP`, `DELETE`, `UPDATE`, `INSERT`, `ALTER`, `TRUNCATE`).
-- **Stage 2 (Context Synthesis)**: Takes SQL result dataframes and generates human-readable executive summaries.
-
-### 2.4 Proactive Waste Analyzer (`analyzer.py`)
-- Executes analytical SQL queries over DuckDB tables:
-  - **ECS**: CPU/Memory reservation vs max peak utilization (`cpu_utilization_max < 15.0`).
-  - **Lambda**: Allocated memory vs peak memory used (`memory_allocated_mb >= memory_max_used_mb * 2`).
-  - **S3 Storage**: Standard storage objects > 90 days lacking lifecycle policies.
-- Passes candidate recommendations to `guardrails.py` for policy vetting before writing to `candidate_recommendations`.
-
-### 2.5 Banking Security & Compliance Guardrails Engine (`guardrails.py`)
-- Intercepts all candidate recommendations against 4 banking policies:
-  - `RULE_S3_KMS`: Rejects deleting or detaching AWS Managed KMS keys (`REJECTED_KMS_MANDATE`).
-  - `RULE_ECS_SIDECARS`: Rejects stripping container security sidecars (`REJECTED_SECURITY_SIDECAR_OMISSION`).
-  - `RULE_LAMBDA_BOUNDS`: Enforces minimum memory thresholds and X-Ray telemetry retention (`REJECTED_LAMBDA_TELEMETRY_BOUNDS`).
-  - `RULE_NO_PUBLIC_ACCESS`: Enforces `PublicAccessBlockConfiguration` (`REJECTED_PUBLIC_ACCESS_EXPOSURE`).
-
-### 2.6 IaC & Service Catalog Generator (`iac_generator.py`)
-- Converts approved recommendations into compliant **AWS CloudFormation YAML** code (`cloudformation_template.yaml`).
-- Produces **AWS Service Catalog Product Definition JSON** metadata (`service_catalog_product.json`).
-
-### 2.7 User Interface (`app.py`)
-- Built with Streamlit (`streamlit`).
-- Features a system control sidebar (Account Selector, Credentials status, BU filter, Guardrails toggle) and 4 interactive tabs.
-
----
-
-## 3. Developer Environment Setup
-
-### Prerequisites
-- Python 3.10 or higher
-- Git
-- Virtualenv (`venv` or Conda)
-
-### Setup Steps
+### Option B: Local Python Virtual Environment
 ```bash
-# 1. Clone repository
-git clone https://github.com/your-org/cloudintel.git
-cd cloudintel
-
-# 2. Create virtual environment
+# 1. Create and activate virtual environment
 python -m venv venv
+.\venv\Scripts\Activate.ps1   # Windows PowerShell
+# source venv/bin/activate    # Linux / macOS
 
-# 3. Activate virtual environment (Windows PowerShell)
-.\venv\Scripts\Activate.ps1
-# Activate virtual environment (Linux/macOS)
-# source venv/bin/activate
-
-# 4. Install dependencies
+# 2. Install dependencies
 pip install -r requirements.txt
+
+# 3. Configure .env file
+cp .env.example .env
 ```
 
-### Configure `.env`
-Create a `.env` file in the project root:
+Edit `.env` to include your Anthropic API Key:
 ```env
-GROQ_API_KEY=gsk_your_groq_api_key_here
-LLM_MODEL_NAME=llama-3.3-70b-versatile
-
-# AWS Non-Prod Access Keys (Optional for live AWS polling)
-AWS_ACCESS_KEY_ID=AKIA...
-AWS_SECRET_ACCESS_KEY=your_secret_key
-AWS_SESSION_TOKEN=your_optional_session_token
-AWS_DEFAULT_REGION=us-east-1
-
-GUARDRAILS_MODE=ENFORCE
-ACCOUNTS_CONFIG_PATH=accounts.json
+ANTHROPIC_API_KEY=sk-ant-api03-...
+CLAUDE_PRIMARY_MODEL=claude-3-7-sonnet-20250219
+CLAUDE_FAST_MODEL=claude-3-5-haiku-20241022
 DUCKDB_PATH=data/processed/cloudintel.duckdb
+GUARDRAILS_MODE=ENFORCE
 ```
 
 ---
 
-## 4. How to Extend CloudIntel
+## 3. Core Development Workflows
 
-### 4.1 Adding a New Cloud Service (e.g., Amazon RDS / DynamoDB)
-1. **Extend DuckDB Schema (`ingest.py`)**:
-   Add a new table creation query (e.g. `rds_database_metrics`).
-2. **Update Data Ingestion (`ingest.py` & `aws_connector.py`)**:
-   - Add sample JSON dataset in `data/raw/rds_database_metrics.json`.
-   - Add `boto3.client('rds')` describe calls in `aws_connector.py`.
-3. **Add Waste Scanner Logic (`analyzer.py`)**:
-   Add analytical query checking idle connections / unattached storage -> append to `candidates`.
-4. **Update Guardrail Policies (`guardrails.py`)**:
-   Add rules checking storage encryption or snapshot retention.
+### 3.1 Adding a New Cloud Resource Category
+1. **DuckDB Schema**: Add the new resource table creation in `plugins/finops-cost-optimizer/core/ingest_engine.py`.
+2. **Data Ingestion**: Add parsing in `plugins/finops-cost-optimizer/tools/data_ingest_tool.py` and Boto3 polling in `aws_connector_tool.py`.
+3. **Waste Scanner Algorithm**: Add pattern recognition logic in `plugins/finops-cost-optimizer/core/analyzer_engine.py`.
+4. **Banking Guardrails**: Add corresponding compliance rules in `plugins/finops-cost-optimizer/core/guardrails_engine.py`.
+5. **IaC Synthesizer**: Add CloudFormation generation rules in `plugins/finops-cost-optimizer/core/iac_engine.py`.
 
-### 4.2 Adding a New Banking Compliance Guardrail Rule
-1. Open `guardrails.py`.
-2. Add a new rule evaluation block inside `evaluate_recommendation()`:
-   ```python
-   # Rule 5: Database Storage Encryption Mandate (RULE_RDS_KMS)
-   if "RDS" in service_type and "UNENCRYPTED" in proposed_fix:
-       rec["compliance_status"] = "REJECTED_RDS_KMS_MANDATE"
-       rec["guardrail_rule_triggered"] = "RULE_RDS_KMS"
-       return rec
-   ```
-3. Add unit test in `tests/test_guardrails.py`.
-
-### 4.3 Adding a New LLM Provider (e.g. Anthropic Claude 3.5 Sonnet / Azure OpenAI)
-1. Open `llm_client.py`.
-2. Update `call_llm()` to check provider environment variables (`ANTHROPIC_API_KEY` / `AZURE_OPENAI_KEY`).
-3. Instantiates `anthropic.Anthropic()` client and formats messages according to Claude messages API.
-
----
-
-## 5. Testing & Debugging
-
-### Running Unit Tests
+### 3.2 Running Automated Test Suites
 ```bash
-python -m unittest discover tests
-```
+# Run all unit tests
+pytest tests/unit/ -v
 
-### Individual Test Files
-```bash
-python -m unittest tests/test_guardrails.py
-python -m unittest tests/test_sql_safety.py
-```
+# Run banking compliance security tests
+pytest tests/security/test_banking_compliance.py -v
 
-### Direct Module Execution for Debugging
-```bash
-# Test ETL Ingestion
-python ingest.py
-
-# Test Live AWS Connector
-python aws_connector.py
-
-# Test Waste Analyzer & Guardrails
-python analyzer.py
-
-# Test Query Agent (Text-to-SQL)
-python query_agent.py
-
-# Test IaC Generator
-python iac_generator.py
+# Run Anthropic Agent SDK evaluation benchmarks
+python agent-sdk-example/evaluation/evaluate_accuracy.py
 ```
 
 ---
 
-## 6. Coding Standards & Git Workflow
-
-- **Style Guide**: PEP 8 compliance. Use explicit type hints where applicable.
-- **Console Printing**: Use standard ASCII text strings (e.g., `[INFO]`, `[WARNING]`, `[SUCCESS]`) instead of unicode emojis to avoid Windows console `cp1252` encoding errors.
-- **Git Branching**: Feature branches branched off `main` or `aws-cost-opti`. Never commit secret credentials or `.env` files to git.
+*CloudIntel Developer Guide — Standardized on Claude Code Plugin & Anthropic Agent SDK.*
